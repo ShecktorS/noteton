@@ -1,0 +1,46 @@
+name: noteton
+description: A modern open-source sheet music manager. Alternative to MobileSheets.
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^2.5.1
+
+  # Navigation
+  go_router: ^14.2.0
+
+  # Database
+  sqflite: ^2.3.3+1
+  path: ^1.9.0
+
+  # PDF Rendering
+  pdfx: ^2.6.0
+
+  # File picking & storage
+  file_picker: ^8.1.2
+  path_provider: ^2.1.3
+
+  # Bluetooth (page turner pedals)
+  flutter_blue_plus: ^1.32.12
+
+  # Utilities
+  uuid: ^4.4.0
+  intl: ^0.19.0
+
+  # Icons
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
