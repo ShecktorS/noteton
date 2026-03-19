@@ -717,21 +717,21 @@ class _SongGridCard extends StatelessWidget {
         // Three-dot menu (normal mode)
         if (!inSelectionMode)
           Positioned(
-            top: 2,
-            right: 2,
+            top: 4,
+            right: 4,
             child: Material(
               color: Colors.transparent,
               child: InkWell(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(20),
                 onTap: onOptions,
                 child: Container(
-                  padding: const EdgeInsets.all(4),
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: Colors.black38,
-                    borderRadius: BorderRadius.circular(16),
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Icon(Icons.more_vert,
-                      size: 16, color: Colors.white),
+                      size: 22, color: Colors.white),
                 ),
               ),
             ),
