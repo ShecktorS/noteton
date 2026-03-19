@@ -377,18 +377,45 @@ class _ImportDetailsDialogState extends ConsumerState<_ImportDetailsDialog> {
 
 // ── Song card with PDF thumbnail ─────────────────────────────────────────────
 
-class _SongCard extends StatelessWidget {
+class _SongCard extends ConsumerWidget {
   final Song song;
   final VoidCallback onTap;
 
   const _SongCard({required this.song, required this.onTap});
 
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Elimina spartito'),
+        content: Text(
+            'Vuoi eliminare "${song.title}"?\nIl file PDF verrà rimosso dal dispositivo.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annulla'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(ctx).colorScheme.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Elimina'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await ref.read(songRepositoryProvider).delete(song.id!);
+    ref.invalidate(songsProvider);
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
+        onLongPress: () => _confirmDelete(context, ref),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
