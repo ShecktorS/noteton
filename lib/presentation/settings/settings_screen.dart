@@ -45,7 +45,7 @@ class SettingsScreen extends StatelessWidget {
             subtitle: const Text('Noteton 0.1.0'),
           ),
           ListTile(
-            leading: const Icon(Icons.open_source_initiative),
+            leading: const Icon(Icons.balance),
             title: const Text('Licenza'),
             subtitle: const Text('MIT / GPL — Open Source'),
           ),
