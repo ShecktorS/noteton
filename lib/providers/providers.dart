@@ -4,6 +4,7 @@ import '../data/repositories/setlist_repository.dart';
 import '../data/repositories/composer_repository.dart';
 import '../domain/models/song.dart';
 import '../domain/models/setlist.dart';
+import '../domain/models/setlist_item.dart';
 import '../domain/models/composer.dart';
 
 // Repositories (singletons)
@@ -19,6 +20,11 @@ final songsProvider = FutureProvider.family<List<Song>, String?>((ref, query) as
 // Setlists
 final setlistsProvider = FutureProvider<List<Setlist>>((ref) async {
   return ref.read(setlistRepositoryProvider).getAll();
+});
+
+// Setlist items
+final setlistItemsProvider = FutureProvider.family<List<SetlistItem>, int>((ref, setlistId) async {
+  return ref.read(setlistRepositoryProvider).getItemsForSetlist(setlistId);
 });
 
 // Composers

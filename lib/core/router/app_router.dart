@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 import '../../presentation/library/library_screen.dart';
 import '../../presentation/viewer/pdf_viewer_page.dart';
 import '../../presentation/setlist/setlist_screen.dart';
+import '../../presentation/setlist/setlist_detail_screen.dart';
 import '../../presentation/performance/performance_screen.dart';
 import '../../presentation/settings/settings_screen.dart';
 import '../../core/constants/app_constants.dart';
@@ -23,6 +24,15 @@ final appRouter = GoRouter(
     GoRoute(
       path: AppConstants.routeSetlists,
       builder: (context, state) => const SetlistScreen(),
+      routes: [
+        GoRoute(
+          path: ':setlistId',
+          builder: (context, state) {
+            final setlistId = int.parse(state.pathParameters['setlistId']!);
+            return SetlistDetailScreen(setlistId: setlistId);
+          },
+        ),
+      ],
     ),
     GoRoute(
       path: '${AppConstants.routePerformance}/:setlistId',
