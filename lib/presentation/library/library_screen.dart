@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,7 +32,28 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   _ViewMode _viewMode = _ViewMode.grid;
   final Set<int> _selectedIds = {};
 
+  static const _prefKey = 'library_view_mode';
+
   bool get _inSelectionMode => _selectedIds.isNotEmpty;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadViewMode();
+  }
+
+  Future<void> _loadViewMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString(_prefKey);
+    if (saved == 'list' && mounted) {
+      setState(() => _viewMode = _ViewMode.list);
+    }
+  }
+
+  Future<void> _saveViewMode(_ViewMode mode) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefKey, mode == _ViewMode.list ? 'list' : 'grid');
+  }
 
   void _toggleSelection(int id) {
     setState(() {
@@ -108,9 +130,13 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               children: [
                 FloatingActionButton.small(
                   heroTag: 'view_toggle',
-                  onPressed: () => setState(() => _viewMode = _viewMode == _ViewMode.grid
-                      ? _ViewMode.list
-                      : _ViewMode.grid),
+                  onPressed: () {
+                    final next = _viewMode == _ViewMode.grid
+                        ? _ViewMode.list
+                        : _ViewMode.grid;
+                    setState(() => _viewMode = next);
+                    _saveViewMode(next);
+                  },
                   tooltip: _viewMode == _ViewMode.grid ? 'Vista lista' : 'Vista griglia',
                   child: Icon(_viewMode == _ViewMode.grid
                       ? Icons.list

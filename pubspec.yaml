@@ -32,6 +32,9 @@ dependencies:
   # Bluetooth (page turner pedals)
   flutter_blue_plus: ^1.32.12
 
+  # Preferences
+  shared_preferences: ^2.3.2
+
   # Utilities
   uuid: ^4.4.0
   intl: ^0.19.0
