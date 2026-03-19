@@ -19,6 +19,21 @@ class _SetlistDetailScreenState extends ConsumerState<SetlistDetailScreen> {
   List<SetlistItem> _items = [];
   String _title = 'Setlist';
   bool _loading = true;
+  final Set<int> _selectedIds = {};
+
+  bool get _inSelectionMode => _selectedIds.isNotEmpty;
+
+  void _toggleSelection(int itemId) {
+    setState(() {
+      if (_selectedIds.contains(itemId)) {
+        _selectedIds.remove(itemId);
+      } else {
+        _selectedIds.add(itemId);
+      }
+    });
+  }
+
+  void _exitSelectionMode() => setState(() => _selectedIds.clear());
 
   @override
   void initState() {
@@ -56,26 +71,58 @@ class _SetlistDetailScreenState extends ConsumerState<SetlistDetailScreen> {
       final item = _items.removeAt(oldIndex);
       _items.insert(newIndex, item);
     });
-    ref
-        .read(setlistRepositoryProvider)
-        .reorderItems(widget.setlistId, _items);
+    ref.read(setlistRepositoryProvider).reorderItems(widget.setlistId, _items);
   }
 
-  // ── Remove item ─────────────────────────────────────────────────────────────
+  // ── Remove single ────────────────────────────────────────────────────────────
 
   Future<void> _removeItem(SetlistItem item) async {
     await ref.read(setlistRepositoryProvider).removeItem(item.id!);
     await _reload();
-    // Reorder remaining items to keep positions consistent
     ref.read(setlistRepositoryProvider).reorderItems(widget.setlistId, _items);
   }
 
-  // ── Add songs ───────────────────────────────────────────────────────────────
+  // ── Remove selected ──────────────────────────────────────────────────────────
+
+  Future<void> _removeSelected(BuildContext context) async {
+    final count = _selectedIds.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Rimuovi $count bran${count == 1 ? 'o' : 'i'}'),
+        content: Text(
+            'Vuoi rimuovere $count bran${count == 1 ? 'o' : 'i'} dalla setlist?\nGli spartiti rimarranno nella libreria.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annulla')),
+          FilledButton(
+            style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(ctx).colorScheme.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Rimuovi'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final repo = ref.read(setlistRepositoryProvider);
+    for (final id in List.from(_selectedIds)) {
+      await repo.removeItem(id);
+    }
+    _exitSelectionMode();
+    await _reload();
+    repo.reorderItems(widget.setlistId, _items);
+  }
+
+  // ── Add songs ────────────────────────────────────────────────────────────────
 
   Future<void> _showAddSongSheet(BuildContext context) async {
     final allSongs = await ref.read(songRepositoryProvider).getAll();
     final existingIds = _items.map((i) => i.songId).toSet();
-    final available = allSongs.where((s) => !existingIds.contains(s.id)).toList();
+    final available =
+        allSongs.where((s) => !existingIds.contains(s.id)).toList();
 
     if (!context.mounted) return;
 
@@ -148,21 +195,39 @@ class _SetlistDetailScreenState extends ConsumerState<SetlistDetailScreen> {
     );
   }
 
+  // ── Build ────────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_title),
-        actions: [
-          if (_items.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.play_arrow),
-              tooltip: 'Modalità performance',
-              onPressed: () => context.push(
-                  '${AppConstants.routePerformance}/${widget.setlistId}'),
+      appBar: _inSelectionMode
+          ? AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: _exitSelectionMode,
+              ),
+              title: Text(
+                  '${_selectedIds.length} selezionat${_selectedIds.length == 1 ? 'o' : 'i'}'),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  tooltip: 'Rimuovi selezionati',
+                  onPressed: () => _removeSelected(context),
+                ),
+              ],
+            )
+          : AppBar(
+              title: Text(_title),
+              actions: [
+                if (_items.isNotEmpty)
+                  IconButton(
+                    icon: const Icon(Icons.play_arrow),
+                    tooltip: 'Modalità performance',
+                    onPressed: () => context.push(
+                        '${AppConstants.routePerformance}/${widget.setlistId}'),
+                  ),
+              ],
             ),
-        ],
-      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty
@@ -184,66 +249,49 @@ class _SetlistDetailScreenState extends ConsumerState<SetlistDetailScreen> {
               : ReorderableListView.builder(
                   padding: const EdgeInsets.only(bottom: 80),
                   itemCount: _items.length,
-                  onReorder: _onReorder,
+                  onReorder: _inSelectionMode ? (_, __) {} : _onReorder,
                   itemBuilder: (context, i) {
                     final item = _items[i];
                     final song = item.song!;
+                    final isSelected = _selectedIds.contains(item.id);
+
                     return ListTile(
                       key: ValueKey(item.id ?? i),
-                      leading: CircleAvatar(
-                        child: Text('${i + 1}',
-                            style: const TextStyle(fontSize: 13)),
-                      ),
+                      leading: _inSelectionMode
+                          ? Checkbox(
+                              value: isSelected,
+                              onChanged: (_) => _toggleSelection(item.id!),
+                            )
+                          : CircleAvatar(
+                              child: Text('${i + 1}',
+                                  style: const TextStyle(fontSize: 13)),
+                            ),
                       title: Text(song.title,
                           maxLines: 1, overflow: TextOverflow.ellipsis),
                       subtitle: song.composerName != null
                           ? Text(song.composerName!)
                           : null,
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: Icon(Icons.remove_circle_outline,
-                                color:
-                                    Theme.of(context).colorScheme.error),
-                            onPressed: () => _confirmRemove(context, item),
-                          ),
-                          ReorderableDragStartListener(
-                            index: i,
-                            child: const Icon(Icons.drag_handle),
-                          ),
-                        ],
-                      ),
+                      trailing: _inSelectionMode
+                          ? null
+                          : ReorderableDragStartListener(
+                              index: i,
+                              child: const Icon(Icons.drag_handle),
+                            ),
+                      onTap: _inSelectionMode
+                          ? () => _toggleSelection(item.id!)
+                          : null,
+                      onLongPress: _inSelectionMode
+                          ? null
+                          : () => _toggleSelection(item.id!),
                     );
                   },
                 ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddSongSheet(context),
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: _inSelectionMode
+          ? null
+          : FloatingActionButton(
+              onPressed: () => _showAddSongSheet(context),
+              child: const Icon(Icons.add),
+            ),
     );
-  }
-
-  Future<void> _confirmRemove(BuildContext context, SetlistItem item) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Rimuovi dalla setlist'),
-        content:
-            Text('Vuoi rimuovere "${item.song?.title}" da questa setlist?'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Annulla')),
-          FilledButton(
-            style: FilledButton.styleFrom(
-                backgroundColor: Theme.of(ctx).colorScheme.error),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Rimuovi'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true) await _removeItem(item);
   }
 }
