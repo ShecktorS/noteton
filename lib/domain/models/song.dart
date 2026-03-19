@@ -1,3 +1,53 @@
+import 'package:flutter/material.dart';
+
+enum SongStatus {
+  none,
+  toLearn,
+  inProgress,
+  ready,
+  repertoire;
+
+  String get label {
+    switch (this) {
+      case SongStatus.none: return '';
+      case SongStatus.toLearn: return 'Da imparare';
+      case SongStatus.inProgress: return 'In studio';
+      case SongStatus.ready: return 'Pronto';
+      case SongStatus.repertoire: return 'In repertorio';
+    }
+  }
+
+  String get dbValue {
+    switch (this) {
+      case SongStatus.none: return 'none';
+      case SongStatus.toLearn: return 'to_learn';
+      case SongStatus.inProgress: return 'in_progress';
+      case SongStatus.ready: return 'ready';
+      case SongStatus.repertoire: return 'repertoire';
+    }
+  }
+
+  static SongStatus fromDb(String? value) {
+    switch (value) {
+      case 'to_learn': return SongStatus.toLearn;
+      case 'in_progress': return SongStatus.inProgress;
+      case 'ready': return SongStatus.ready;
+      case 'repertoire': return SongStatus.repertoire;
+      default: return SongStatus.none;
+    }
+  }
+
+  Color get color {
+    switch (this) {
+      case SongStatus.none: return Colors.transparent;
+      case SongStatus.toLearn: return const Color(0xFF9E9E9E);    // grigio
+      case SongStatus.inProgress: return const Color(0xFF2196F3); // blu
+      case SongStatus.ready: return const Color(0xFF4CAF50);      // verde
+      case SongStatus.repertoire: return const Color(0xFFD4A853); // dorato
+    }
+  }
+}
+
 class Song {
   final int? id;
   final String title;
@@ -7,6 +57,7 @@ class Song {
   final int lastPage;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final SongStatus status;
 
   // Optional joined data (not stored in songs table directly)
   final String? composerName;
@@ -21,6 +72,7 @@ class Song {
     this.lastPage = 0,
     required this.createdAt,
     required this.updatedAt,
+    this.status = SongStatus.none,
     this.composerName,
     this.tags = const [],
   });
@@ -35,6 +87,7 @@ class Song {
       lastPage: (map['last_page'] as int?) ?? 0,
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
+      status: SongStatus.fromDb(map['status'] as String?),
       composerName: map['composer_name'] as String?,
     );
   }
@@ -49,6 +102,7 @@ class Song {
       'last_page': lastPage,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
+      'status': status.dbValue,
     };
   }
 
@@ -61,6 +115,7 @@ class Song {
     int? lastPage,
     DateTime? createdAt,
     DateTime? updatedAt,
+    SongStatus? status,
     String? composerName,
     List<String>? tags,
   }) {
@@ -73,6 +128,7 @@ class Song {
       lastPage: lastPage ?? this.lastPage,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      status: status ?? this.status,
       composerName: composerName ?? this.composerName,
       tags: tags ?? this.tags,
     );

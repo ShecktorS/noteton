@@ -3,7 +3,7 @@ import 'package:path/path.dart';
 
 class DatabaseHelper {
   static const _databaseName = 'noteton.db';
-  static const _databaseVersion = 1;
+  static const _databaseVersion = 3;
 
   DatabaseHelper._();
   static final DatabaseHelper instance = DatabaseHelper._();
@@ -23,12 +23,14 @@ class DatabaseHelper {
     } catch (_) {
       path = _databaseName;
     }
-    return openDatabase(
+    final db = await openDatabase(
       path,
       version: _databaseVersion,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
+    await db.execute('PRAGMA foreign_keys = ON');
+    return db;
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -50,7 +52,8 @@ class DatabaseHelper {
         total_pages  INTEGER NOT NULL DEFAULT 0,
         last_page    INTEGER NOT NULL DEFAULT 0,
         created_at   TEXT NOT NULL,
-        updated_at   TEXT NOT NULL
+        updated_at   TEXT NOT NULL,
+        status       TEXT NOT NULL DEFAULT 'none'
       )
     ''');
 
@@ -100,14 +103,58 @@ class DatabaseHelper {
       )
     ''');
 
+    await db.execute('''
+      CREATE TABLE collections (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        name        TEXT NOT NULL,
+        description TEXT,
+        color       TEXT NOT NULL DEFAULT '#2196F3',
+        created_at  TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE song_collections (
+        collection_id INTEGER NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+        song_id       INTEGER NOT NULL REFERENCES songs(id) ON DELETE CASCADE,
+        PRIMARY KEY (collection_id, song_id)
+      )
+    ''');
+
     // Indexes for common queries
     await db.execute('CREATE INDEX idx_songs_composer ON songs(composer_id)');
     await db.execute('CREATE INDEX idx_song_tags_song ON song_tags(song_id)');
     await db.execute('CREATE INDEX idx_setlist_items_setlist ON setlist_items(setlist_id)');
     await db.execute('CREATE INDEX idx_annotations_song ON annotations(song_id, page_number)');
+    await db.execute('CREATE INDEX idx_song_collections_collection ON song_collections(collection_id)');
+    await db.execute('CREATE INDEX idx_song_collections_song ON song_collections(song_id)');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // Future migrations go here
+    if (oldVersion < 2) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS collections (
+          id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          name        TEXT NOT NULL,
+          description TEXT,
+          color       TEXT NOT NULL DEFAULT '#2196F3',
+          created_at  TEXT NOT NULL
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS song_collections (
+          collection_id INTEGER NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+          song_id       INTEGER NOT NULL REFERENCES songs(id) ON DELETE CASCADE,
+          PRIMARY KEY (collection_id, song_id)
+        )
+      ''');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_song_collections_collection ON song_collections(collection_id)');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_song_collections_song ON song_collections(song_id)');
+    }
+    if (oldVersion < 3) {
+      await db.execute(
+        "ALTER TABLE songs ADD COLUMN status TEXT NOT NULL DEFAULT 'none'",
+      );
+    }
   }
 }

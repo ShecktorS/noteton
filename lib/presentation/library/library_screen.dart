@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,11 +12,13 @@ import 'package:pdfx/pdfx.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../domain/models/collection.dart';
 import '../../domain/models/setlist.dart';
 import '../../domain/models/setlist_item.dart';
 import '../../domain/models/song.dart';
 import '../../providers/providers.dart';
 import '../common/app_bottom_nav.dart';
+import '../common/pdf_thumbnail.dart';
 
 enum _ViewMode { grid, list }
 
@@ -31,6 +32,7 @@ class LibraryScreen extends ConsumerStatefulWidget {
 class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   _ViewMode _viewMode = _ViewMode.grid;
   final Set<int> _selectedIds = {};
+  SongStatus? _statusFilter; // null = mostra tutti
 
   static const _prefKey = 'library_view_mode';
 
@@ -95,13 +97,38 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   icon: const Icon(Icons.search),
                   onPressed: () => _showSearch(context),
                 ),
+                Stack(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.filter_list),
+                      tooltip: 'Filtra per stato',
+                      onPressed: () => _showStatusFilterMenu(context),
+                    ),
+                    if (_statusFilter != null)
+                      Positioned(
+                        right: 6, top: 6,
+                        child: Container(
+                          width: 8, height: 8,
+                          decoration: BoxDecoration(
+                            color: _statusFilter!.color,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ],
             ),
       body: songsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Errore: $e')),
         data: (songs) {
-          if (songs.isEmpty) {
+          // Applica filtro status se attivo
+          final filtered = _statusFilter == null
+              ? songs
+              : songs.where((s) => s.status == _statusFilter).toList();
+
+          if (filtered.isEmpty) {
             return Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -110,17 +137,20 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       size: 64,
                       color: Theme.of(context).colorScheme.outline),
                   const SizedBox(height: 16),
-                  const Text('Nessuno spartito nella libreria'),
+                  Text(_statusFilter != null
+                      ? 'Nessuno spartito con stato "${_statusFilter!.label}"'
+                      : 'Nessuno spartito nella libreria'),
                   const SizedBox(height: 8),
-                  const Text('Tocca + per importare un PDF',
-                      style: TextStyle(color: Colors.grey)),
+                  if (_statusFilter == null)
+                    const Text('Tocca + per importare un PDF',
+                        style: TextStyle(color: Colors.grey)),
                 ],
               ),
             );
           }
           return _viewMode == _ViewMode.grid
-              ? _buildGrid(songs)
-              : _buildList(songs);
+              ? _buildGrid(filtered)
+              : _buildList(filtered);
         },
       ),
       floatingActionButton: _inSelectionMode
@@ -201,9 +231,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   value: isSelected,
                   onChanged: (_) => _toggleSelection(song.id!),
                 )
-              : _SmallThumbnail(
+              : PdfThumbnail(
                   key: ValueKey(song.filePath),
                   filePath: song.filePath,
+                  size: 48,
                 ),
           title: Text(song.title,
               maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -213,13 +244,31 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               if (song.composerName != null)
                 Text(song.composerName!,
                     maxLines: 1, overflow: TextOverflow.ellipsis),
-              if (song.lastPage > 0 && song.totalPages > 0)
-                Text(
-                  'Pag. ${song.lastPage} / ${song.totalPages}',
-                  style: TextStyle(
-                      fontSize: 11,
-                      color: Theme.of(context).colorScheme.primary),
-                ),
+              Row(
+                children: [
+                  if (song.lastPage > 0 && song.totalPages > 0)
+                    Text(
+                      'Pag. ${song.lastPage} / ${song.totalPages}',
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(context).colorScheme.primary),
+                    ),
+                  if (song.lastPage > 0 && song.totalPages > 0 && song.status != SongStatus.none)
+                    const SizedBox(width: 8),
+                  if (song.status != SongStatus.none)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: song.status.color.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: song.status.color.withOpacity(0.5)),
+                      ),
+                      child: Text(song.status.label,
+                          style: TextStyle(fontSize: 9, color: song.status.color,
+                              fontWeight: FontWeight.w600)),
+                    ),
+                ],
+              ),
             ],
           ),
           trailing: _inSelectionMode
@@ -263,6 +312,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       ),
     );
     if (confirmed != true) return;
+    if (!mounted) return;
     final repo = ref.read(songRepositoryProvider);
     for (final id in List.from(_selectedIds)) {
       await repo.delete(id);
@@ -289,6 +339,26 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             },
           ),
           ListTile(
+            leading: const Icon(Icons.label_outline),
+            title: const Text('Stato'),
+            subtitle: song.status != SongStatus.none
+                ? Text(song.status.label,
+                    style: TextStyle(color: song.status.color, fontSize: 12))
+                : null,
+            onTap: () {
+              Navigator.pop(ctx);
+              _showStatusPicker(context, song);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.folder_special_outlined),
+            title: const Text('Aggiungi a raccolta'),
+            onTap: () {
+              Navigator.pop(ctx);
+              _showAddToCollectionDialog(context, song);
+            },
+          ),
+          ListTile(
             leading: Icon(Icons.delete_outline,
                 color: Theme.of(context).colorScheme.error),
             title: Text('Elimina',
@@ -305,70 +375,132 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
+  // ── Add to collection dialog ─────────────────────────────────────────────────
+
+  Future<void> _showAddToCollectionDialog(BuildContext context, Song song) async {
+    final collections = await ref.read(collectionRepositoryProvider).getAll();
+    if (!context.mounted) return;
+    if (collections.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Nessuna raccolta disponibile. Creane una nella sezione Raccolte.'),
+        ),
+      );
+      return;
+    }
+    final currentIds = await ref.read(collectionRepositoryProvider).getCollectionIdsForSong(song.id!);
+    if (!context.mounted) return;
+    final selectedIds = Set<int>.from(currentIds);
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Aggiungi a raccolta'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: collections
+                  .map((c) => CheckboxListTile(
+                        title: Text(c.name),
+                        value: selectedIds.contains(c.id),
+                        onChanged: (checked) => setDialogState(() {
+                          if (checked == true) {
+                            selectedIds.add(c.id!);
+                          } else {
+                            selectedIds.remove(c.id);
+                          }
+                        }),
+                      ))
+                  .toList(),
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Annulla')),
+            FilledButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                final repo = ref.read(collectionRepositoryProvider);
+                // Add to newly selected
+                for (final id in selectedIds.difference(Set.from(currentIds))) {
+                  await repo.addSong(id, song.id!);
+                }
+                // Remove from deselected
+                for (final id in Set.from(currentIds).difference(selectedIds)) {
+                  await repo.removeSong(id, song.id!);
+                }
+                ref.invalidate(collectionsProvider);
+              },
+              child: const Text('Salva'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ── Edit dialog ─────────────────────────────────────────────────────────────
 
   Future<void> _showEditDialog(BuildContext context, Song song) async {
     final titleCtrl = TextEditingController(text: song.title);
     final authorCtrl = TextEditingController(text: song.composerName ?? '');
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Modifica dettagli'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: titleCtrl,
-              decoration: const InputDecoration(labelText: 'Titolo'),
-              autofocus: true,
-              textCapitalization: TextCapitalization.sentences,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: authorCtrl,
-              decoration:
-                  const InputDecoration(labelText: 'Autore (opzionale)'),
-              textCapitalization: TextCapitalization.words,
-            ),
+    try {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Modifica dettagli'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleCtrl,
+                decoration: const InputDecoration(labelText: 'Titolo'),
+                autofocus: true,
+                textCapitalization: TextCapitalization.sentences,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: authorCtrl,
+                decoration: const InputDecoration(labelText: 'Autore (opzionale)'),
+                textCapitalization: TextCapitalization.words,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Annulla')),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Salva')),
           ],
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Annulla')),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Salva')),
-        ],
-      ),
-    );
-
-    if (confirmed != true || !context.mounted) return;
-
-    final newTitle =
-        titleCtrl.text.trim().isEmpty ? song.title : titleCtrl.text.trim();
-    final newAuthor =
-        authorCtrl.text.trim().isEmpty ? null : authorCtrl.text.trim();
-
-    int? composerId;
-    if (newAuthor != null) {
-      final composer =
-          await ref.read(composerRepositoryProvider).findOrCreate(newAuthor);
-      composerId = composer.id;
+      );
+      if (confirmed != true || !context.mounted) return;
+      final newTitle = titleCtrl.text.trim().isEmpty ? song.title : titleCtrl.text.trim();
+      final newAuthor = authorCtrl.text.trim().isEmpty ? null : authorCtrl.text.trim();
+      int? composerId;
+      if (newAuthor != null) {
+        final composer = await ref.read(composerRepositoryProvider).findOrCreate(newAuthor);
+        composerId = composer.id;
+      }
+      if (!context.mounted) return;
+      await ref.read(songRepositoryProvider).update(Song(
+        id: song.id,
+        title: newTitle,
+        composerId: composerId,
+        filePath: song.filePath,
+        totalPages: song.totalPages,
+        lastPage: song.lastPage,
+        createdAt: song.createdAt,
+        updatedAt: DateTime.now(),
+      ));
+      ref.invalidate(songsProvider);
+    } finally {
+      titleCtrl.dispose();
+      authorCtrl.dispose();
     }
-
-    await ref.read(songRepositoryProvider).update(Song(
-          id: song.id,
-          title: newTitle,
-          composerId: composerId,
-          filePath: song.filePath,
-          totalPages: song.totalPages,
-          lastPage: song.lastPage,
-          createdAt: song.createdAt,
-          updatedAt: DateTime.now(),
-        ));
-    ref.invalidate(songsProvider);
   }
 
   // ── Single delete ───────────────────────────────────────────────────────────
@@ -394,6 +526,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       ),
     );
     if (confirmed != true) return;
+    if (!mounted) return;
     await ref.read(songRepositoryProvider).delete(song.id!);
     ref.invalidate(songsProvider);
   }
@@ -498,6 +631,13 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         }
       }
 
+      if (importResult != null && importResult.collectionIds.isNotEmpty) {
+        final collectionRepo = ref.read(collectionRepositoryProvider);
+        for (final collectionId in importResult.collectionIds) {
+          await collectionRepo.addSong(collectionId, savedSong.id!);
+        }
+      }
+
       ref.invalidate(songsProvider);
       if (context.mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
@@ -518,6 +658,93 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   void _showSearch(BuildContext context) {
     showSearch(context: context, delegate: _SongSearchDelegate(ref));
   }
+
+  // ── Status filter menu ───────────────────────────────────────────────────────
+
+  void _showStatusFilterMenu(BuildContext context) async {
+    final result = await showModalBottomSheet<SongStatus?>(
+      context: context,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Text('Filtra per stato',
+                style: Theme.of(ctx).textTheme.titleMedium),
+          ),
+          ListTile(
+            leading: const Icon(Icons.all_inclusive),
+            title: const Text('Tutti'),
+            trailing: _statusFilter == null
+                ? Icon(Icons.check, color: Theme.of(ctx).colorScheme.primary)
+                : null,
+            onTap: () => Navigator.pop(ctx, null),
+          ),
+          ...SongStatus.values.where((s) => s != SongStatus.none).map((status) =>
+            ListTile(
+              leading: Container(
+                width: 12, height: 12,
+                decoration: BoxDecoration(
+                  color: status.color, shape: BoxShape.circle),
+              ),
+              title: Text(status.label),
+              trailing: _statusFilter == status
+                  ? Icon(Icons.check, color: Theme.of(ctx).colorScheme.primary)
+                  : null,
+              onTap: () => Navigator.pop(ctx, status),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+    if (!context.mounted) return;
+    // result == null significa sia "Tutti" (pop con null esplicito) che chiusura senza selezione.
+    // Per distinguerli usiamo un flag: se il bottom sheet è stato chiuso senza tap,
+    // result è null ma non aggiorniamo (usiamo useRootNavigator: false).
+    // In pratica, per semplicità, null = "Tutti" (reset filtro).
+    setState(() => _statusFilter = result);
+  }
+
+  // ── Status picker ────────────────────────────────────────────────────────────
+
+  Future<void> _showStatusPicker(BuildContext context, Song song) async {
+    final result = await showModalBottomSheet<SongStatus>(
+      context: context,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Text('Stato di "${song.title}"',
+                style: Theme.of(ctx).textTheme.titleMedium),
+          ),
+          ...SongStatus.values.map((status) => ListTile(
+            leading: status == SongStatus.none
+                ? const Icon(Icons.remove_circle_outline)
+                : Container(
+                    width: 12, height: 12,
+                    decoration: BoxDecoration(
+                      color: status.color, shape: BoxShape.circle),
+                  ),
+            title: Text(status == SongStatus.none ? 'Nessuno stato' : status.label),
+            trailing: song.status == status
+                ? Icon(Icons.check, color: Theme.of(ctx).colorScheme.primary)
+                : null,
+            onTap: () => Navigator.pop(ctx, status),
+          )),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+    if (result == null || !context.mounted) return;
+    await ref.read(songRepositoryProvider).update(
+      song.copyWith(status: result, updatedAt: DateTime.now()),
+    );
+    ref.invalidate(songsProvider);
+  }
 }
 
 // ── Import result ─────────────────────────────────────────────────────────────
@@ -526,8 +753,13 @@ class _ImportResult {
   final String title;
   final String? authorName;
   final List<int> setlistIds;
-  const _ImportResult(
-      {required this.title, this.authorName, required this.setlistIds});
+  final List<int> collectionIds;
+  const _ImportResult({
+    required this.title,
+    this.authorName,
+    required this.setlistIds,
+    this.collectionIds = const [],
+  });
 }
 
 // ── Import details dialog ─────────────────────────────────────────────────────
@@ -548,12 +780,16 @@ class _ImportDetailsDialogState extends ConsumerState<_ImportDetailsDialog> {
   List<Setlist> _setlists = [];
   final Set<int> _selectedSetlistIds = {};
   bool _loadingSetlists = true;
+  List<Collection> _collections = [];
+  final Set<int> _selectedCollectionIds = {};
+  bool _loadingCollections = true;
 
   @override
   void initState() {
     super.initState();
     _titleCtrl = TextEditingController(text: widget.defaultTitle);
     _loadSetlists();
+    _loadCollections();
   }
 
   @override
@@ -573,12 +809,32 @@ class _ImportDetailsDialogState extends ConsumerState<_ImportDetailsDialog> {
     }
   }
 
+  Future<void> _loadCollections() async {
+    final collections = await ref.read(collectionRepositoryProvider).getAll();
+    if (mounted) {
+      setState(() {
+        _collections = collections;
+        _loadingCollections = false;
+      });
+    }
+  }
+
   void _next() {
     if (_step == 0) {
       if (_setlists.isEmpty && !_loadingSetlists) {
-        _confirm();
+        if (_collections.isEmpty && !_loadingCollections) {
+          _confirm();
+        } else {
+          setState(() => _step = 2);
+        }
       } else {
         setState(() => _step = 1);
+      }
+    } else if (_step == 1) {
+      if (_collections.isEmpty && !_loadingCollections) {
+        _confirm();
+      } else {
+        setState(() => _step = 2);
       }
     } else {
       _confirm();
@@ -595,25 +851,26 @@ class _ImportDetailsDialogState extends ConsumerState<_ImportDetailsDialog> {
       title: title,
       authorName: author,
       setlistIds: List.from(_selectedSetlistIds),
+      collectionIds: List.from(_selectedCollectionIds),
     ));
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(_step == 0 ? 'Dettagli spartito' : 'Aggiungi a una lista'),
-      content: _step == 0 ? _buildStep0() : _buildStep1(),
+      title: Text(_step == 0 ? 'Dettagli spartito' : _step == 1 ? 'Aggiungi a una lista' : 'Aggiungi a una raccolta'),
+      content: _step == 0 ? _buildStep0() : _step == 1 ? _buildStep1() : _buildStep2(),
       actions: [
         TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Annulla')),
-        if (_step == 1)
+        if (_step == 1 || _step == 2)
           TextButton(
-              onPressed: () => setState(() => _step = 0),
+              onPressed: () => setState(() => _step = _step == 2 ? 1 : 0),
               child: const Text('Indietro')),
         FilledButton(
             onPressed: _next,
-            child: Text(_step == 0 ? 'Avanti' : 'Importa')),
+            child: Text(_step == 0 ? 'Avanti' : _step == 1 ? 'Avanti' : 'Importa')),
       ],
     );
   }
@@ -665,6 +922,35 @@ class _ImportDetailsDialogState extends ConsumerState<_ImportDetailsDialog> {
       ),
     );
   }
+
+  Widget _buildStep2() {
+    if (_loadingCollections) {
+      return const SizedBox(
+          height: 80, child: Center(child: CircularProgressIndicator()));
+    }
+    if (_collections.isEmpty) {
+      return const Text(
+          'Nessuna raccolta disponibile.\nPotrai aggiungere lo spartito a una raccolta in seguito.');
+    }
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: _collections
+            .map((c) => CheckboxListTile(
+                  title: Text(c.name),
+                  value: _selectedCollectionIds.contains(c.id),
+                  onChanged: (checked) => setState(() {
+                    if (checked == true) {
+                      _selectedCollectionIds.add(c.id!);
+                    } else {
+                      _selectedCollectionIds.remove(c.id);
+                    }
+                  }),
+                ))
+            .toList(),
+      ),
+    );
+  }
 }
 
 // ── Song grid card ────────────────────────────────────────────────────────────
@@ -700,7 +986,7 @@ class _SongGridCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: _PdfThumbnail(
+                  child: PdfThumbnailExpanded(
                     key: ValueKey(song.filePath),
                     filePath: song.filePath,
                   ),
@@ -732,6 +1018,21 @@ class _SongGridCard extends StatelessWidget {
                           style: TextStyle(
                               fontSize: 10,
                               color: Theme.of(context).colorScheme.primary),
+                        ),
+                      if (song.status != SongStatus.none)
+                        Container(
+                          margin: const EdgeInsets.only(top: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: song.status.color.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: song.status.color.withOpacity(0.5), width: 1),
+                          ),
+                          child: Text(
+                            song.status.label,
+                            style: TextStyle(fontSize: 9, color: song.status.color,
+                                fontWeight: FontWeight.w600),
+                          ),
                         ),
                     ],
                   ),
@@ -789,149 +1090,6 @@ class _SongGridCard extends StatelessWidget {
           ),
       ],
     );
-  }
-}
-
-// ── Small thumbnail for list view ─────────────────────────────────────────────
-
-class _SmallThumbnail extends StatefulWidget {
-  final String filePath;
-  const _SmallThumbnail({super.key, required this.filePath});
-
-  @override
-  State<_SmallThumbnail> createState() => _SmallThumbnailState();
-}
-
-class _SmallThumbnailState extends State<_SmallThumbnail> {
-  Uint8List? _bytes;
-  bool _loaded = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  @override
-  void didUpdateWidget(_SmallThumbnail oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.filePath != widget.filePath) {
-      setState(() { _bytes = null; _loaded = false; });
-      _load();
-    }
-  }
-
-  Future<void> _load() async {
-    if (kIsWeb) { if (mounted) setState(() => _loaded = true); return; }
-    PdfDocument? doc;
-    PdfPage? page;
-    try {
-      doc = await PdfDocument.openFile(widget.filePath);
-      page = await doc.getPage(1);
-      final image = await page.render(
-          width: 80, height: 110, format: PdfPageImageFormat.jpeg);
-      if (mounted) setState(() { _bytes = image?.bytes; _loaded = true; });
-    } catch (_) {
-      if (mounted) setState(() => _loaded = true);
-    } finally {
-      await page?.close();
-      await doc?.close();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    const size = 48.0;
-    final bg = Theme.of(context).colorScheme.surfaceContainerHighest;
-    if (!_loaded) {
-      return Container(
-        width: size, height: size,
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
-        child: const Center(child: SizedBox(width: 16, height: 16,
-            child: CircularProgressIndicator(strokeWidth: 1.5))),
-      );
-    }
-    if (_bytes == null) {
-      return Container(
-        width: size, height: size,
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
-        child: Icon(Icons.picture_as_pdf, size: 24,
-            color: Theme.of(context).colorScheme.primary),
-      );
-    }
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(6),
-      child: Image.memory(_bytes!, width: size, height: size, fit: BoxFit.cover),
-    );
-  }
-}
-
-// ── PDF thumbnail for grid ────────────────────────────────────────────────────
-
-class _PdfThumbnail extends StatefulWidget {
-  final String filePath;
-  const _PdfThumbnail({super.key, required this.filePath});
-
-  @override
-  State<_PdfThumbnail> createState() => _PdfThumbnailState();
-}
-
-class _PdfThumbnailState extends State<_PdfThumbnail> {
-  Uint8List? _bytes;
-  bool _loaded = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  @override
-  void didUpdateWidget(_PdfThumbnail oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.filePath != widget.filePath) {
-      setState(() { _bytes = null; _loaded = false; });
-      _load();
-    }
-  }
-
-  Future<void> _load() async {
-    if (kIsWeb) { if (mounted) setState(() => _loaded = true); return; }
-    PdfDocument? doc;
-    PdfPage? page;
-    try {
-      doc = await PdfDocument.openFile(widget.filePath);
-      page = await doc.getPage(1);
-      final image = await page.render(
-        width: page.width / 2,
-        height: page.height / 2,
-        format: PdfPageImageFormat.jpeg,
-      );
-      if (mounted) setState(() { _bytes = image?.bytes; _loaded = true; });
-    } catch (_) {
-      if (mounted) setState(() => _loaded = true);
-    } finally {
-      await page?.close();
-      await doc?.close();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (!_loaded) {
-      return Container(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-      );
-    }
-    if (_bytes == null) {
-      return Container(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        child: Center(child: Icon(Icons.picture_as_pdf,
-            size: 48, color: Theme.of(context).colorScheme.primary)),
-      );
-    }
-    return Image.memory(_bytes!, fit: BoxFit.cover, width: double.infinity);
   }
 }
 

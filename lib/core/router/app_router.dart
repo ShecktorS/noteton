@@ -5,6 +5,8 @@ import '../../presentation/setlist/setlist_screen.dart';
 import '../../presentation/setlist/setlist_detail_screen.dart';
 import '../../presentation/performance/performance_screen.dart';
 import '../../presentation/settings/settings_screen.dart';
+import '../../presentation/collections/collections_screen.dart';
+import '../../presentation/collections/collection_detail_screen.dart';
 import '../../core/constants/app_constants.dart';
 
 final appRouter = GoRouter(
@@ -17,7 +19,7 @@ final appRouter = GoRouter(
     GoRoute(
       path: '${AppConstants.routeViewer}/:songId',
       builder: (context, state) {
-        final songId = int.parse(state.pathParameters['songId']!);
+        final songId = int.tryParse(state.pathParameters['songId'] ?? '') ?? 0;
         return PdfViewerPage(songId: songId);
       },
     ),
@@ -28,7 +30,7 @@ final appRouter = GoRouter(
         GoRoute(
           path: ':setlistId',
           builder: (context, state) {
-            final setlistId = int.parse(state.pathParameters['setlistId']!);
+            final setlistId = int.tryParse(state.pathParameters['setlistId'] ?? '') ?? 0;
             return SetlistDetailScreen(setlistId: setlistId);
           },
         ),
@@ -37,10 +39,23 @@ final appRouter = GoRouter(
     GoRoute(
       path: '${AppConstants.routePerformance}/:setlistId',
       builder: (context, state) {
-        final setlistId = int.parse(state.pathParameters['setlistId']!);
+        final setlistId = int.tryParse(state.pathParameters['setlistId'] ?? '') ?? 0;
         final songIndex = int.tryParse(state.uri.queryParameters['songIndex'] ?? '') ?? 0;
         return PerformanceScreen(setlistId: setlistId, initialSongIndex: songIndex);
       },
+    ),
+    GoRoute(
+      path: AppConstants.routeCollections,
+      builder: (context, state) => const CollectionsScreen(),
+      routes: [
+        GoRoute(
+          path: ':collectionId',
+          builder: (context, state) {
+            final collectionId = int.tryParse(state.pathParameters['collectionId'] ?? '') ?? 0;
+            return CollectionDetailScreen(collectionId: collectionId);
+          },
+        ),
+      ],
     ),
     GoRoute(
       path: AppConstants.routeSettings,

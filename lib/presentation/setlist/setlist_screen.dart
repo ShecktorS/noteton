@@ -39,22 +39,88 @@ class SetlistScreen extends ConsumerWidget {
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
             itemCount: setlists.length,
             itemBuilder: (context, i) {
               final setlist = setlists[i];
-              return ListTile(
-                leading: const CircleAvatar(child: Icon(Icons.queue_music)),
-                title: Text(setlist.title),
-                subtitle: setlist.performanceDate != null
-                    ? Text(_formatDate(setlist.performanceDate!))
-                    : null,
-                trailing: IconButton(
-                  icon: const Icon(Icons.more_vert),
-                  onPressed: () => _showOptions(context, ref, setlist),
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: Card(
+                  child: InkWell(
+                    onTap: () => context
+                        .push('${AppConstants.routeSetlists}/${setlist.id}'),
+                    onLongPress: () => _showOptions(context, ref, setlist),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  setlist.title,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.w600),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (setlist.performanceDate != null) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .secondaryContainer,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.event_outlined,
+                                    size: 14,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSecondaryContainer,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _formatDate(setlist.performanceDate!),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSecondaryContainer,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          const SizedBox(width: 4),
+                          IconButton(
+                            icon: Icon(Icons.more_vert,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant),
+                            onPressed: () =>
+                                _showOptions(context, ref, setlist),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-                onTap: () => context
-                    .push('${AppConstants.routeSetlists}/${setlist.id}'),
               );
             },
           );

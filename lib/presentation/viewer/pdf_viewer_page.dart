@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pdfx/pdfx.dart';
@@ -21,6 +22,7 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
   int _currentPage = 1;
   int _totalPages = 0;
   bool _appBarVisible = true;
+  bool _standMode = false;
 
   @override
   void initState() {
@@ -69,6 +71,9 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
 
   @override
   void dispose() {
+    if (_standMode) {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    }
     _pdfController?.dispose();
     super.dispose();
   }
@@ -118,6 +123,20 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
               backgroundColor: Colors.black87,
               foregroundColor: Colors.white,
               elevation: 0,
+              actions: [
+                IconButton(
+                  icon: Icon(_standMode ? Icons.fullscreen_exit : Icons.fullscreen),
+                  tooltip: _standMode ? 'Esci da modalità leggio' : 'Modalità leggio',
+                  onPressed: () {
+                    setState(() => _standMode = !_standMode);
+                    if (_standMode) {
+                      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+                    } else {
+                      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+                    }
+                  },
+                ),
+              ],
             )
           : null,
       body: _buildBody(),
@@ -136,11 +155,15 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
     return Stack(
       children: [
         // PDF viewer
-        PdfView(
-          controller: _pdfController!,
-          onPageChanged: _onPageChanged,
-          scrollDirection: Axis.horizontal,
-          pageSnapping: true,
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          color: _standMode ? Colors.white : Colors.transparent,
+          child: PdfView(
+            controller: _pdfController!,
+            onPageChanged: _onPageChanged,
+            scrollDirection: Axis.horizontal,
+            pageSnapping: true,
+          ),
         ),
 
         // Left edge — previous page

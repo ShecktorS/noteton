@@ -30,6 +30,10 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
   int _totalPages = 0;
   bool _appBarVisible = true;
 
+  // Flash visivo per le zone tap
+  bool _leftFlash = false;
+  bool _rightFlash = false;
+
   @override
   void initState() {
     super.initState();
@@ -87,6 +91,7 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
   }
 
   void _nextAction() {
+    HapticFeedback.lightImpact();
     if (_currentPage < _totalPages) {
       _pdfController?.nextPage(
           duration: const Duration(milliseconds: 200), curve: Curves.easeInOut);
@@ -96,6 +101,7 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
   }
 
   void _prevAction() {
+    HapticFeedback.lightImpact();
     if (_currentPage > 1) {
       _pdfController?.previousPage(
           duration: const Duration(milliseconds: 200), curve: Curves.easeInOut);
@@ -122,8 +128,16 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: _appBarVisible
-          ? AppBar(
+      // HUD sempre nel widget tree — usa AnimatedOpacity invece di rimuoverlo
+      extendBodyBehindAppBar: true,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: AnimatedOpacity(
+          opacity: _appBarVisible ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 200),
+          child: IgnorePointer(
+            ignoring: !_appBarVisible,
+            child: AppBar(
               leading: IconButton(
                 icon: const Icon(Icons.close),
                 onPressed: () => context.pop(),
@@ -144,8 +158,10 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
               backgroundColor: Colors.black87,
               foregroundColor: Colors.white,
               elevation: 0,
-            )
-          : null,
+            ),
+          ),
+        ),
+      ),
       body: _buildBody(context),
     );
   }
@@ -182,20 +198,54 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
         // Left edge — previous page / previous song
         Positioned(
           left: 0, top: 0, bottom: 0,
-          width: MediaQuery.of(context).size.width * 0.25,
           child: GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onTap: _prevAction,
+            onTap: () async {
+              setState(() => _leftFlash = true);
+              await Future.delayed(const Duration(milliseconds: 120));
+              if (mounted) setState(() => _leftFlash = false);
+              _prevAction();
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              width: MediaQuery.of(context).size.width * 0.25,
+              height: double.infinity,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: _leftFlash
+                      ? [Colors.white.withOpacity(0.15), Colors.transparent]
+                      : [Colors.transparent, Colors.transparent],
+                ),
+              ),
+            ),
           ),
         ),
 
         // Right edge — next page / next song
         Positioned(
           right: 0, top: 0, bottom: 0,
-          width: MediaQuery.of(context).size.width * 0.25,
           child: GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onTap: _nextAction,
+            onTap: () async {
+              setState(() => _rightFlash = true);
+              await Future.delayed(const Duration(milliseconds: 120));
+              if (mounted) setState(() => _rightFlash = false);
+              _nextAction();
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              width: MediaQuery.of(context).size.width * 0.25,
+              height: double.infinity,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerRight,
+                  end: Alignment.centerLeft,
+                  colors: _rightFlash
+                      ? [Colors.white.withOpacity(0.15), Colors.transparent]
+                      : [Colors.transparent, Colors.transparent],
+                ),
+              ),
+            ),
           ),
         ),
 

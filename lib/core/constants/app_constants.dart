@@ -3,13 +3,14 @@ class AppConstants {
 
   static const String appName = 'Noteton';
   static const String appVersion = '0.1.0';
-  static const int databaseVersion = 1;
+  static const int databaseVersion = 3;
 
   // Route names
   static const String routeLibrary = '/';
   static const String routeViewer = '/viewer';
   static const String routeSetlists = '/setlists';
   static const String routePerformance = '/performance';
+  static const String routeCollections = '/collections';
   static const String routeSettings = '/settings';
   static const String routeSongDetail = '/song';
 
