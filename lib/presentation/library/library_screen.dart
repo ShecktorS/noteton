@@ -29,6 +29,21 @@ class LibraryScreen extends ConsumerStatefulWidget {
 
 class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   _ViewMode _viewMode = _ViewMode.grid;
+  final Set<int> _selectedIds = {};
+
+  bool get _inSelectionMode => _selectedIds.isNotEmpty;
+
+  void _toggleSelection(int id) {
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+      } else {
+        _selectedIds.add(id);
+      }
+    });
+  }
+
+  void _exitSelectionMode() => setState(() => _selectedIds.clear());
 
   @override
   Widget build(BuildContext context) {
@@ -36,15 +51,30 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final songsAsync = ref.watch(songsProvider(query.isEmpty ? null : query));
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(AppConstants.appName),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () => _showSearch(context),
-          ),
-        ],
-      ),
+      appBar: _inSelectionMode
+          ? AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: _exitSelectionMode,
+              ),
+              title: Text('${_selectedIds.length} selezionat${_selectedIds.length == 1 ? 'o' : 'i'}'),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  tooltip: 'Elimina selezionati',
+                  onPressed: () => _deleteSelected(context),
+                ),
+              ],
+            )
+          : AppBar(
+              title: const Text(AppConstants.appName),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.search),
+                  onPressed: () => _showSearch(context),
+                ),
+              ],
+            ),
       body: songsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Errore: $e')),
@@ -71,26 +101,29 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               : _buildList(songs);
         },
       ),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          FloatingActionButton.small(
-            heroTag: 'view_toggle',
-            onPressed: () => setState(() => _viewMode =
-                _viewMode == _ViewMode.grid ? _ViewMode.list : _ViewMode.grid),
-            tooltip:
-                _viewMode == _ViewMode.grid ? 'Vista lista' : 'Vista griglia',
-            child: Icon(
-                _viewMode == _ViewMode.grid ? Icons.list : Icons.grid_view),
-          ),
-          const SizedBox(height: 8),
-          FloatingActionButton(
-            heroTag: 'import',
-            onPressed: () => _startImport(context),
-            child: const Icon(Icons.add),
-          ),
-        ],
-      ),
+      floatingActionButton: _inSelectionMode
+          ? null
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FloatingActionButton.small(
+                  heroTag: 'view_toggle',
+                  onPressed: () => setState(() => _viewMode = _viewMode == _ViewMode.grid
+                      ? _ViewMode.list
+                      : _ViewMode.grid),
+                  tooltip: _viewMode == _ViewMode.grid ? 'Vista lista' : 'Vista griglia',
+                  child: Icon(_viewMode == _ViewMode.grid
+                      ? Icons.list
+                      : Icons.grid_view),
+                ),
+                const SizedBox(height: 8),
+                FloatingActionButton(
+                  heroTag: 'import',
+                  onPressed: () => _startImport(context),
+                  child: const Icon(Icons.add),
+                ),
+              ],
+            ),
       bottomNavigationBar: const AppBottomNav(currentIndex: 0),
     );
   }
@@ -107,12 +140,23 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         mainAxisSpacing: 12,
       ),
       itemCount: songs.length,
-      itemBuilder: (context, i) => _SongGridCard(
-        song: songs[i],
-        onTap: () =>
-            context.push('${AppConstants.routeViewer}/${songs[i].id}'),
-        onLongPress: () => _showOptions(context, songs[i]),
-      ),
+      itemBuilder: (context, i) {
+        final song = songs[i];
+        final isSelected = _selectedIds.contains(song.id);
+        return _SongGridCard(
+          key: ValueKey(song.id),
+          song: song,
+          isSelected: isSelected,
+          inSelectionMode: _inSelectionMode,
+          onTap: _inSelectionMode
+              ? () => _toggleSelection(song.id!)
+              : () => context.push('${AppConstants.routeViewer}/${song.id}'),
+          onLongPress: () {
+            if (!_inSelectionMode) _toggleSelection(song.id!);
+          },
+          onOptions: () => _showOptions(context, song),
+        );
+      },
     );
   }
 
@@ -124,8 +168,17 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       itemCount: songs.length,
       itemBuilder: (context, i) {
         final song = songs[i];
+        final isSelected = _selectedIds.contains(song.id);
         return ListTile(
-          leading: _SmallThumbnail(filePath: song.filePath),
+          leading: _inSelectionMode
+              ? Checkbox(
+                  value: isSelected,
+                  onChanged: (_) => _toggleSelection(song.id!),
+                )
+              : _SmallThumbnail(
+                  key: ValueKey(song.filePath),
+                  filePath: song.filePath,
+                ),
           title: Text(song.title,
               maxLines: 1, overflow: TextOverflow.ellipsis),
           subtitle: Column(
@@ -143,12 +196,53 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 ),
             ],
           ),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => context.push('${AppConstants.routeViewer}/${song.id}'),
-          onLongPress: () => _showOptions(context, song),
+          trailing: _inSelectionMode
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.more_vert),
+                  onPressed: () => _showOptions(context, song),
+                ),
+          onTap: _inSelectionMode
+              ? () => _toggleSelection(song.id!)
+              : () => context.push('${AppConstants.routeViewer}/${song.id}'),
+          onLongPress: () {
+            if (!_inSelectionMode) _toggleSelection(song.id!);
+          },
         );
       },
     );
+  }
+
+  // ── Bulk delete ─────────────────────────────────────────────────────────────
+
+  Future<void> _deleteSelected(BuildContext context) async {
+    final count = _selectedIds.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Elimina $count spartit${count == 1 ? 'o' : 'i'}'),
+        content: Text(
+            'Verranno eliminati $count spartit${count == 1 ? 'o' : 'i'} e i relativi file PDF.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annulla')),
+          FilledButton(
+            style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(ctx).colorScheme.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Elimina'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final repo = ref.read(songRepositoryProvider);
+    for (final id in List.from(_selectedIds)) {
+      await repo.delete(id);
+    }
+    _exitSelectionMode();
+    ref.invalidate(songsProvider);
   }
 
   // ── Options bottom sheet ────────────────────────────────────────────────────
@@ -226,8 +320,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
     if (confirmed != true || !context.mounted) return;
 
-    final newTitle = titleCtrl.text.trim().isEmpty ? song.title : titleCtrl.text.trim();
-    final newAuthor = authorCtrl.text.trim().isEmpty ? null : authorCtrl.text.trim();
+    final newTitle =
+        titleCtrl.text.trim().isEmpty ? song.title : titleCtrl.text.trim();
+    final newAuthor =
+        authorCtrl.text.trim().isEmpty ? null : authorCtrl.text.trim();
 
     int? composerId;
     if (newAuthor != null) {
@@ -249,7 +345,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     ref.invalidate(songsProvider);
   }
 
-  // ── Delete ──────────────────────────────────────────────────────────────────
+  // ── Single delete ───────────────────────────────────────────────────────────
 
   Future<void> _confirmDelete(BuildContext context, Song song) async {
     final confirmed = await showDialog<bool>(
@@ -326,8 +422,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       if (importResult == null || !context.mounted) return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Importazione in corso…')));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Importazione in corso…')));
 
     try {
       final docsDir = await getApplicationDocumentsDirectory();
@@ -394,10 +490,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 
   void _showSearch(BuildContext context) {
-    showSearch(
-      context: context,
-      delegate: _SongSearchDelegate(ref),
-    );
+    showSearch(context: context, delegate: _SongSearchDelegate(ref));
   }
 }
 
@@ -411,7 +504,7 @@ class _ImportResult {
       {required this.title, this.authorName, required this.setlistIds});
 }
 
-// ── Import details dialog (2 steps) ──────────────────────────────────────────
+// ── Import details dialog ─────────────────────────────────────────────────────
 
 class _ImportDetailsDialog extends ConsumerStatefulWidget {
   final String defaultTitle;
@@ -446,7 +539,12 @@ class _ImportDetailsDialogState extends ConsumerState<_ImportDetailsDialog> {
 
   Future<void> _loadSetlists() async {
     final setlists = await ref.read(setlistRepositoryProvider).getAll();
-    if (mounted) setState(() { _setlists = setlists; _loadingSetlists = false; });
+    if (mounted) {
+      setState(() {
+        _setlists = setlists;
+        _loadingSetlists = false;
+      });
+    }
   }
 
   void _next() {
@@ -547,57 +645,123 @@ class _ImportDetailsDialogState extends ConsumerState<_ImportDetailsDialog> {
 
 class _SongGridCard extends StatelessWidget {
   final Song song;
+  final bool isSelected;
+  final bool inSelectionMode;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
+  final VoidCallback onOptions;
 
-  const _SongGridCard(
-      {required this.song, required this.onTap, required this.onLongPress});
+  const _SongGridCard({
+    super.key,
+    required this.song,
+    required this.isSelected,
+    required this.inSelectionMode,
+    required this.onTap,
+    required this.onLongPress,
+    required this.onOptions,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        onLongPress: onLongPress,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: _PdfThumbnail(filePath: song.filePath)),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    song.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyMedium
-                        ?.copyWith(fontWeight: FontWeight.bold),
+    return Stack(
+      children: [
+        Card(
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            onLongPress: onLongPress,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _PdfThumbnail(
+                    key: ValueKey(song.filePath),
+                    filePath: song.filePath,
                   ),
-                  if (song.composerName != null)
-                    Text(
-                      song.composerName!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  if (song.lastPage > 0 && song.totalPages > 0)
-                    Text(
-                      'Pag. ${song.lastPage} / ${song.totalPages}',
-                      style: TextStyle(
-                          fontSize: 10,
-                          color: Theme.of(context).colorScheme.primary),
-                    ),
-                ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        song.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      if (song.composerName != null)
+                        Text(
+                          song.composerName!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      if (song.lastPage > 0 && song.totalPages > 0)
+                        Text(
+                          'Pag. ${song.lastPage} / ${song.totalPages}',
+                          style: TextStyle(
+                              fontSize: 10,
+                              color: Theme.of(context).colorScheme.primary),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        // Three-dot menu (normal mode)
+        if (!inSelectionMode)
+          Positioned(
+            top: 2,
+            right: 2,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: onOptions,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.black38,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(Icons.more_vert,
+                      size: 16, color: Colors.white),
+                ),
               ),
             ),
-          ],
-        ),
-      ),
+          ),
+        // Selection overlay
+        if (inSelectionMode)
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isSelected
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.white.withOpacity(0.85),
+                border: Border.all(
+                  color: isSelected
+                      ? Theme.of(context).colorScheme.primary
+                      : Colors.grey.shade400,
+                  width: 2,
+                ),
+              ),
+              child: isSelected
+                  ? const Icon(Icons.check, size: 14, color: Colors.white)
+                  : null,
+            ),
+          ),
+      ],
     );
   }
 }
@@ -606,7 +770,7 @@ class _SongGridCard extends StatelessWidget {
 
 class _SmallThumbnail extends StatefulWidget {
   final String filePath;
-  const _SmallThumbnail({required this.filePath});
+  const _SmallThumbnail({super.key, required this.filePath});
 
   @override
   State<_SmallThumbnail> createState() => _SmallThumbnailState();
@@ -620,6 +784,15 @@ class _SmallThumbnailState extends State<_SmallThumbnail> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void didUpdateWidget(_SmallThumbnail oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.filePath != widget.filePath) {
+      setState(() { _bytes = null; _loaded = false; });
+      _load();
+    }
   }
 
   Future<void> _load() async {
@@ -643,13 +816,11 @@ class _SmallThumbnailState extends State<_SmallThumbnail> {
   @override
   Widget build(BuildContext context) {
     const size = 48.0;
+    final bg = Theme.of(context).colorScheme.surfaceContainerHighest;
     if (!_loaded) {
       return Container(
         width: size, height: size,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(6),
-        ),
+        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
         child: const Center(child: SizedBox(width: 16, height: 16,
             child: CircularProgressIndicator(strokeWidth: 1.5))),
       );
@@ -657,12 +828,9 @@ class _SmallThumbnailState extends State<_SmallThumbnail> {
     if (_bytes == null) {
       return Container(
         width: size, height: size,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Icon(Icons.picture_as_pdf,
-            size: 24, color: Theme.of(context).colorScheme.primary),
+        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
+        child: Icon(Icons.picture_as_pdf, size: 24,
+            color: Theme.of(context).colorScheme.primary),
       );
     }
     return ClipRRect(
@@ -676,7 +844,7 @@ class _SmallThumbnailState extends State<_SmallThumbnail> {
 
 class _PdfThumbnail extends StatefulWidget {
   final String filePath;
-  const _PdfThumbnail({required this.filePath});
+  const _PdfThumbnail({super.key, required this.filePath});
 
   @override
   State<_PdfThumbnail> createState() => _PdfThumbnailState();
@@ -690,6 +858,15 @@ class _PdfThumbnailState extends State<_PdfThumbnail> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void didUpdateWidget(_PdfThumbnail oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.filePath != widget.filePath) {
+      setState(() { _bytes = null; _loaded = false; });
+      _load();
+    }
   }
 
   Future<void> _load() async {
