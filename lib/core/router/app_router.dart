@@ -38,7 +38,8 @@ final appRouter = GoRouter(
       path: '${AppConstants.routePerformance}/:setlistId',
       builder: (context, state) {
         final setlistId = int.parse(state.pathParameters['setlistId']!);
-        return PerformanceScreen(setlistId: setlistId);
+        final songIndex = int.tryParse(state.uri.queryParameters['songIndex'] ?? '') ?? 0;
+        return PerformanceScreen(setlistId: setlistId, initialSongIndex: songIndex);
       },
     ),
     GoRoute(

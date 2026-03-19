@@ -9,7 +9,12 @@ import '../../providers/providers.dart';
 
 class PerformanceScreen extends ConsumerStatefulWidget {
   final int setlistId;
-  const PerformanceScreen({super.key, required this.setlistId});
+  final int initialSongIndex;
+  const PerformanceScreen({
+    super.key,
+    required this.setlistId,
+    this.initialSongIndex = 0,
+  });
 
   @override
   ConsumerState<PerformanceScreen> createState() => _PerformanceScreenState();
@@ -49,7 +54,8 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
         return;
       }
       _items = items;
-      await _loadSong(0);
+      final startIndex = widget.initialSongIndex.clamp(0, items.length - 1);
+      await _loadSong(startIndex);
     } catch (e) {
       if (mounted) setState(() { _error = 'Errore: $e'; _loading = false; });
     }

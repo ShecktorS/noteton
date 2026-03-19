@@ -220,11 +220,14 @@ class _SetlistDetailScreenState extends ConsumerState<SetlistDetailScreen> {
               title: Text(_title),
               actions: [
                 if (_items.isNotEmpty)
-                  IconButton(
-                    icon: const Icon(Icons.play_arrow),
-                    tooltip: 'Modalità performance',
-                    onPressed: () => context.push(
-                        '${AppConstants.routePerformance}/${widget.setlistId}'),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: FilledButton.icon(
+                      onPressed: () => context.push(
+                          '${AppConstants.routePerformance}/${widget.setlistId}'),
+                      icon: const Icon(Icons.play_arrow),
+                      label: const Text('Esegui'),
+                    ),
                   ),
               ],
             ),
@@ -279,7 +282,9 @@ class _SetlistDetailScreenState extends ConsumerState<SetlistDetailScreen> {
                             ),
                       onTap: _inSelectionMode
                           ? () => _toggleSelection(item.id!)
-                          : null,
+                          : () => context.push(
+                                '${AppConstants.routePerformance}/${widget.setlistId}?songIndex=$i',
+                              ),
                       onLongPress: _inSelectionMode
                           ? null
                           : () => _toggleSelection(item.id!),
