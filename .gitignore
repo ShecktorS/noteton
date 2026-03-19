@@ -60,3 +60,13 @@ app.*.map.json
 /linux/flutter/generated_plugin_registrant.cc
 /linux/flutter/generated_plugin_registrant.h
 /linux/flutter/generated_plugins.cmake
+
+# Claude Code
+CLAUDE.md
+.claude/
+noteton_logo_philosophy.md
+generate_logo.mjs
+node_modules/
+package.json
+package-lock.json
+flutter_01.png
