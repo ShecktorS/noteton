@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:pdfx/pdfx.dart';
 
 import '../../providers/providers.dart';
@@ -98,6 +99,10 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
       backgroundColor: Colors.black,
       appBar: _appBarVisible
           ? AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => context.pop(),
+              ),
               title: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
