@@ -1,47 +1,118 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pdfx/pdfx.dart';
+
 import '../../providers/providers.dart';
 
-class PdfViewerPage extends ConsumerWidget {
+class PdfViewerPage extends ConsumerStatefulWidget {
   final int songId;
-
   const PdfViewerPage({super.key, required this.songId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final songAsync = ref.watch(songsProvider(null));
+  ConsumerState<PdfViewerPage> createState() => _PdfViewerPageState();
+}
 
+class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
+  PdfController? _pdfController;
+  bool _loading = true;
+  String? _error;
+  String _title = 'Spartito';
+  int _currentPage = 1;
+  int _totalPages = 0;
+  bool _appBarVisible = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _initPdf();
+  }
+
+  Future<void> _initPdf() async {
+    try {
+      final song = await ref.read(songRepositoryProvider).getById(widget.songId);
+      if (song == null) {
+        if (mounted) setState(() { _error = 'Spartito non trovato'; _loading = false; });
+        return;
+      }
+
+      final initialPage = song.lastPage > 0 ? song.lastPage : 1;
+      final controller = PdfController(
+        document: PdfDocument.openFile(song.filePath),
+        initialPage: initialPage,
+      );
+
+      if (mounted) {
+        setState(() {
+          _title = song.title;
+          _pdfController = controller;
+          _currentPage = initialPage;
+          _totalPages = song.totalPages;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() { _error = 'Errore apertura PDF: $e'; _loading = false; });
+    }
+  }
+
+  @override
+  void dispose() {
+    _pdfController?.dispose();
+    super.dispose();
+  }
+
+  void _toggleAppBar() => setState(() => _appBarVisible = !_appBarVisible);
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Spartito')),
-      body: songAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Errore: $e')),
-        data: (songs) {
-          final song = songs.where((s) => s.id == songId).firstOrNull;
-          if (song == null) {
-            return const Center(child: Text('Spartito non trovato'));
-          }
-          // TODO: render PDF with pdfx (Fase 1)
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.picture_as_pdf, size: 80,
-                    color: Theme.of(context).colorScheme.primary),
-                const SizedBox(height: 16),
-                Text(song.title,
-                    style: Theme.of(context).textTheme.headlineSmall),
-                if (song.composerName != null)
-                  Text(song.composerName!,
-                      style: Theme.of(context).textTheme.bodyLarge),
-                const SizedBox(height: 24),
-                const Text('Rendering PDF — in arrivo nella Fase 1',
-                    style: TextStyle(color: Colors.grey)),
-              ],
-            ),
-          );
-        },
+      backgroundColor: Colors.black,
+      appBar: _appBarVisible
+          ? AppBar(
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_title,
+                      style: const TextStyle(fontSize: 16, color: Colors.white)),
+                  if (_totalPages > 0)
+                    Text('$_currentPage / $_totalPages',
+                        style:
+                            const TextStyle(fontSize: 12, color: Colors.white70)),
+                ],
+              ),
+              backgroundColor: Colors.black87,
+              foregroundColor: Colors.white,
+              elevation: 0,
+            )
+          : null,
+      body: _buildBody(),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_error != null) {
+      return Center(
+        child: Text(_error!, style: const TextStyle(color: Colors.white)),
+      );
+    }
+    if (_pdfController == null) return const SizedBox.shrink();
+
+    return GestureDetector(
+      onTap: _toggleAppBar,
+      child: PdfView(
+        controller: _pdfController!,
+        onPageChanged: _onPageChanged,
+        scrollDirection: Axis.horizontal,
+        pageSnapping: true,
       ),
     );
+  }
+
+  void _onPageChanged(int page) {
+    setState(() => _currentPage = page);
+    ref.read(songRepositoryProvider).updateLastPage(widget.songId, page);
   }
 }
