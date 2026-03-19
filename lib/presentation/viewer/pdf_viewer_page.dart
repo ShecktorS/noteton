@@ -29,9 +29,15 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
 
   Future<void> _initPdf() async {
     try {
-      final song = await ref.read(songRepositoryProvider).getById(widget.songId);
+      final song =
+          await ref.read(songRepositoryProvider).getById(widget.songId);
       if (song == null) {
-        if (mounted) setState(() { _error = 'Spartito non trovato'; _loading = false; });
+        if (mounted) {
+          setState(() {
+            _error = 'Spartito non trovato';
+            _loading = false;
+          });
+        }
         return;
       }
 
@@ -51,7 +57,12 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() { _error = 'Errore apertura PDF: $e'; _loading = false; });
+      if (mounted) {
+        setState(() {
+          _error = 'Errore apertura PDF: $e';
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -63,6 +74,24 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
 
   void _toggleAppBar() => setState(() => _appBarVisible = !_appBarVisible);
 
+  void _previousPage() {
+    if (_currentPage > 1) {
+      _pdfController?.previousPage(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  void _nextPage() {
+    if (_currentPage < _totalPages) {
+      _pdfController?.nextPage(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -73,11 +102,12 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(_title,
-                      style: const TextStyle(fontSize: 16, color: Colors.white)),
+                      style:
+                          const TextStyle(fontSize: 16, color: Colors.white)),
                   if (_totalPages > 0)
                     Text('$_currentPage / $_totalPages',
-                        style:
-                            const TextStyle(fontSize: 12, color: Colors.white70)),
+                        style: const TextStyle(
+                            fontSize: 12, color: Colors.white70)),
                 ],
               ),
               backgroundColor: Colors.black87,
@@ -90,24 +120,58 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
   }
 
   Widget _buildBody() {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    if (_loading) return const Center(child: CircularProgressIndicator());
     if (_error != null) {
       return Center(
-        child: Text(_error!, style: const TextStyle(color: Colors.white)),
-      );
+          child:
+              Text(_error!, style: const TextStyle(color: Colors.white)));
     }
     if (_pdfController == null) return const SizedBox.shrink();
 
-    return GestureDetector(
-      onTap: _toggleAppBar,
-      child: PdfView(
-        controller: _pdfController!,
-        onPageChanged: _onPageChanged,
-        scrollDirection: Axis.horizontal,
-        pageSnapping: true,
-      ),
+    return Stack(
+      children: [
+        // PDF viewer
+        PdfView(
+          controller: _pdfController!,
+          onPageChanged: _onPageChanged,
+          scrollDirection: Axis.horizontal,
+          pageSnapping: true,
+        ),
+
+        // Left edge — previous page
+        Positioned(
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: MediaQuery.of(context).size.width * 0.25,
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: _currentPage > 1 ? _previousPage : _toggleAppBar,
+          ),
+        ),
+
+        // Right edge — next page
+        Positioned(
+          right: 0,
+          top: 0,
+          bottom: 0,
+          width: MediaQuery.of(context).size.width * 0.25,
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: _currentPage < _totalPages ? _nextPage : _toggleAppBar,
+          ),
+        ),
+
+        // Center — toggle AppBar
+        Positioned.fill(
+          left: MediaQuery.of(context).size.width * 0.25,
+          right: MediaQuery.of(context).size.width * 0.25,
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: _toggleAppBar,
+          ),
+        ),
+      ],
     );
   }
 

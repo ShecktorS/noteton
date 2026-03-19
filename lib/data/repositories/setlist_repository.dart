@@ -91,6 +91,15 @@ class SetlistRepository {
     await db.delete('setlist_items', where: 'id = ?', whereArgs: [itemId]);
   }
 
+  Future<int> getItemCount(int setlistId) async {
+    final db = await _db;
+    final result = await db.rawQuery(
+      'SELECT COUNT(*) AS cnt FROM setlist_items WHERE setlist_id = ?',
+      [setlistId],
+    );
+    return (result.first['cnt'] as int?) ?? 0;
+  }
+
   Future<void> reorderItems(int setlistId, List<SetlistItem> items) async {
     final db = await _db;
     await db.transaction((txn) async {

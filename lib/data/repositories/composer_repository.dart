@@ -38,4 +38,21 @@ class ComposerRepository {
     final db = await _db;
     await db.delete('composers', where: 'id = ?', whereArgs: [id]);
   }
+
+  Future<Composer?> findByName(String name) async {
+    final db = await _db;
+    final rows = await db.query(
+      'composers',
+      where: 'LOWER(name) = LOWER(?)',
+      whereArgs: [name],
+    );
+    if (rows.isEmpty) return null;
+    return Composer.fromMap(rows.first);
+  }
+
+  Future<Composer> findOrCreate(String name) async {
+    final existing = await findByName(name);
+    if (existing != null) return existing;
+    return insert(Composer(name: name));
+  }
 }

@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import '../../domain/models/song.dart';
 import '../../domain/models/tag.dart';
@@ -69,7 +72,14 @@ class SongRepository {
 
   Future<void> delete(int id) async {
     final db = await _db;
+    final song = await getById(id);
     await db.delete('songs', where: 'id = ?', whereArgs: [id]);
+    if (song != null && !kIsWeb) {
+      try {
+        final file = File(song.filePath);
+        if (await file.exists()) await file.delete();
+      } catch (_) {}
+    }
   }
 
   // Tags
