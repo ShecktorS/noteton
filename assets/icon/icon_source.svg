@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Noteton app icon — versione dark (sfondo Midnight Ink)
+  Usare per rigenerare assets/icon/icon.png a 1024×1024
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1024" height="1024" viewBox="0 0 1024 1024">
+
+  <!-- Sfondo Midnight Ink -->
+  <rect width="1024" height="1024" fill="#1A2F4A" rx="184"/>
+
+  <!-- N con tripla linea bianca (stessa geometria del logo) -->
+  <g stroke="#FFFFFF" stroke-width="11" stroke-linecap="round" fill="none">
+
+    <!-- Segmento sinistro verticale -->
+    <line x1="274" y1="196" x2="274" y2="782"/>
+    <line x1="290" y1="196" x2="290" y2="782"/>
+    <line x1="306" y1="196" x2="306" y2="782"/>
+
+    <!-- Segmento diagonale TL → BR -->
+    <line x1="277" y1="206" x2="721" y2="792"/>
+    <line x1="290" y1="196" x2="734" y2="782"/>
+    <line x1="303" y1="186" x2="747" y2="772"/>
+
+    <!-- Segmento destro verticale -->
+    <line x1="718" y1="196" x2="718" y2="782"/>
+    <line x1="734" y1="196" x2="734" y2="782"/>
+    <line x1="750" y1="196" x2="750" y2="782"/>
+
+  </g>
+
+  <!-- Note head — basso sinistra -->
+  <ellipse cx="228" cy="832" rx="68" ry="45"
+           transform="rotate(-22 228 832)"
+           fill="#4AABF0"/>
+
+  <!-- Note head — alto destra -->
+  <ellipse cx="792" cy="148" rx="68" ry="45"
+           transform="rotate(-22 792 148)"
+           fill="#4AABF0"/>
+
+</svg>

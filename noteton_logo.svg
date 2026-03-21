@@ -1,45 +1,61 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Noteton logo — "N" con tripla linea (stile pentagramma) + note musicali agli angoli
+  Colori: navy #1B3560 per le linee, blu #2B7EC1 per le note head
+  Canvas: 1024×1024, sfondo bianco trasparente
+-->
 <svg xmlns="http://www.w3.org/2000/svg"
      width="1024" height="1024" viewBox="0 0 1024 1024">
 
-  <defs>
-    <!--
-      Clip region: the inner area between the two bars, inset 20px
-      from each bar face so the diagonals never touch the bars.
-      Left bar right edge: 336  → clip starts at 356
-      Right bar left edge: 688  → clip ends at 668
-    -->
-    <clipPath id="inner">
-      <rect x="356" y="196" width="312" height="632"/>
-    </clipPath>
-  </defs>
-
-  <!-- Background: deeper, richer navy -->
-  <rect width="1024" height="1024" fill="#0D1B2E" rx="184.32"/>
-
-  <!-- Left vertical bar (white) -->
-  <rect x="256" y="196" width="80" height="632" fill="#FFFFFF" rx="6"/>
-
-  <!-- Right vertical bar (white) -->
-  <rect x="688" y="196" width="80" height="632" fill="#FFFFFF" rx="6"/>
+  <!-- Sfondo bianco -->
+  <rect width="1024" height="1024" fill="#FFFFFF"/>
 
   <!--
-    Double diagonal (gold), clipped to inner region.
-    Direction vector: (354, 624)  unit=(0.494, 0.871)
-    Perp unit: (0.871, -0.494)
+    Geometria della N:
+      TL = (290, 196)   TR = (734, 196)
+      BL = (290, 782)   BR = (734, 782)
 
-    D1 center axis: (310, 212) → (664, 836)
-    D2 center axis: offset +72px perp from D1
-                    D2 = (373, 176) → (727, 800)
+    Tre linee parallele per segmento, passo 16 px.
+    Spessore stroke: 9 px  stroke-linecap="round"
 
-    Perpendicular gap between D1 and D2: 72 - 52 = 20px  ✓
-    stroke-linecap="butt" for clean rectangular ends after clipping
+    DIAGONALE TL→BR  vettore (444, 586)  |v|≈735
+      unit = (0.604, 0.797)
+      perp (upper-right) = (0.797, -0.604)
+      offset ±16 px:
+        low-left : (-12.8, +9.7)
+        up-right : (+12.8, -9.7)
   -->
-  <g clip-path="url(#inner)">
-    <line x1="310" y1="212" x2="664" y2="836"
-          stroke="#EDE0C4" stroke-width="52" stroke-linecap="butt"/>
-    <line x1="373" y1="176" x2="727" y2="800"
-          stroke="#EDE0C4" stroke-width="52" stroke-linecap="butt"/>
+
+  <g stroke="#1B3560" stroke-width="9" stroke-linecap="round" fill="none">
+
+    <!-- Segmento sinistro verticale -->
+    <line x1="274" y1="196" x2="274" y2="782"/>
+    <line x1="290" y1="196" x2="290" y2="782"/>
+    <line x1="306" y1="196" x2="306" y2="782"/>
+
+    <!-- Segmento diagonale TL → BR -->
+    <!-- offset lower-left -->
+    <line x1="277" y1="206" x2="721" y2="792"/>
+    <!-- center -->
+    <line x1="290" y1="196" x2="734" y2="782"/>
+    <!-- offset upper-right -->
+    <line x1="303" y1="186" x2="747" y2="772"/>
+
+    <!-- Segmento destro verticale -->
+    <line x1="718" y1="196" x2="718" y2="782"/>
+    <line x1="734" y1="196" x2="734" y2="782"/>
+    <line x1="750" y1="196" x2="750" y2="782"/>
+
   </g>
+
+  <!-- Note head — in basso a sinistra (angolo BL della N) -->
+  <ellipse cx="228" cy="832" rx="68" ry="45"
+           transform="rotate(-22 228 832)"
+           fill="#2B7EC1"/>
+
+  <!-- Note head — in alto a destra (angolo TR della N) -->
+  <ellipse cx="792" cy="148" rx="68" ry="45"
+           transform="rotate(-22 792 148)"
+           fill="#2B7EC1"/>
 
 </svg>
