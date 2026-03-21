@@ -276,12 +276,28 @@ class _AddSongsDialog extends ConsumerStatefulWidget {
 class _AddSongsDialogState extends ConsumerState<_AddSongsDialog> {
   List<Song> _availableSongs = [];
   final Set<int> _selectedIds = {};
+  final TextEditingController _searchCtrl = TextEditingController();
   bool _loading = true;
+
+  List<Song> get _filtered {
+    final q = _searchCtrl.text.trim().toLowerCase();
+    if (q.isEmpty) return _availableSongs;
+    return _availableSongs.where((s) =>
+        s.title.toLowerCase().contains(q) ||
+        (s.composerName?.toLowerCase().contains(q) ?? false)).toList();
+  }
 
   @override
   void initState() {
     super.initState();
+    _searchCtrl.addListener(() => setState(() {}));
     _load();
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -321,29 +337,60 @@ class _AddSongsDialogState extends ConsumerState<_AddSongsDialog> {
                 height: 80,
                 child: Center(child: CircularProgressIndicator()))
             : _availableSongs.isEmpty
-                ? const Text(
-                    'Tutti i brani sono già in questa raccolta.')
-                : ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: _availableSongs.length,
-                    itemBuilder: (context, i) {
-                      final song = _availableSongs[i];
-                      return CheckboxListTile(
-                        title: Text(song.title,
-                            maxLines: 1, overflow: TextOverflow.ellipsis),
-                        subtitle: song.composerName != null
-                            ? Text(song.composerName!)
-                            : null,
-                        value: _selectedIds.contains(song.id),
-                        onChanged: (checked) => setState(() {
-                          if (checked == true) {
-                            _selectedIds.add(song.id!);
-                          } else {
-                            _selectedIds.remove(song.id);
-                          }
-                        }),
-                      );
-                    },
+                ? const Text('Tutti i brani sono già in questa raccolta.')
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: _searchCtrl,
+                        autofocus: true,
+                        decoration: InputDecoration(
+                          hintText: 'Cerca brano...',
+                          prefixIcon: const Icon(Icons.search, size: 20),
+                          suffixIcon: _searchCtrl.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.close, size: 18),
+                                  onPressed: () => _searchCtrl.clear(),
+                                )
+                              : null,
+                          isDense: true,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      if (_filtered.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Text('Nessun risultato',
+                              style: TextStyle(color: Colors.grey)),
+                        )
+                      else
+                        Flexible(
+                          child: ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: _filtered.length,
+                            itemBuilder: (context, i) {
+                              final song = _filtered[i];
+                              return CheckboxListTile(
+                                title: Text(song.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis),
+                                subtitle: song.composerName != null
+                                    ? Text(song.composerName!)
+                                    : null,
+                                value: _selectedIds.contains(song.id),
+                                onChanged: (checked) => setState(() {
+                                  if (checked == true) {
+                                    _selectedIds.add(song.id!);
+                                  } else {
+                                    _selectedIds.remove(song.id);
+                                  }
+                                }),
+                                dense: true,
+                              );
+                            },
+                          ),
+                        ),
+                    ],
                   ),
       ),
       actions: [

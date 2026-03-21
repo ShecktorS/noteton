@@ -2,44 +2,44 @@
 <svg xmlns="http://www.w3.org/2000/svg"
      width="1024" height="1024" viewBox="0 0 1024 1024">
 
-  <!-- Background -->
-  <rect width="1024" height="1024" fill="#1A2F4A" rx="184.32"/>
+  <defs>
+    <!--
+      Clip region: the inner area between the two bars, inset 20px
+      from each bar face so the diagonals never touch the bars.
+      Left bar right edge: 336  → clip starts at 356
+      Right bar left edge: 688  → clip ends at 668
+    -->
+    <clipPath id="inner">
+      <rect x="356" y="196" width="312" height="632"/>
+    </clipPath>
+  </defs>
 
-  <!-- Staff lines (subtle, behind note) -->
-  <g opacity="0.35" stroke="#D4A853" stroke-width="8.192" stroke-linecap="round">
-    <line x1="286.72" y1="545.7919999999999" x2="737.28" y2="545.7919999999999"/>
-    <line x1="286.72" y1="599.04" x2="737.28" y2="599.04"/>
-    <line x1="286.72" y1="652.288" x2="737.28" y2="652.288"/>
+  <!-- Background: deeper, richer navy -->
+  <rect width="1024" height="1024" fill="#0D1B2E" rx="184.32"/>
+
+  <!-- Left vertical bar (white) -->
+  <rect x="256" y="196" width="80" height="632" fill="#FFFFFF" rx="6"/>
+
+  <!-- Right vertical bar (white) -->
+  <rect x="688" y="196" width="80" height="632" fill="#FFFFFF" rx="6"/>
+
+  <!--
+    Double diagonal (gold), clipped to inner region.
+    Direction vector: (354, 624)  unit=(0.494, 0.871)
+    Perp unit: (0.871, -0.494)
+
+    D1 center axis: (310, 212) → (664, 836)
+    D2 center axis: offset +72px perp from D1
+                    D2 = (373, 176) → (727, 800)
+
+    Perpendicular gap between D1 and D2: 72 - 52 = 20px  ✓
+    stroke-linecap="butt" for clean rectangular ends after clipping
+  -->
+  <g clip-path="url(#inner)">
+    <line x1="310" y1="212" x2="664" y2="836"
+          stroke="#EDE0C4" stroke-width="52" stroke-linecap="butt"/>
+    <line x1="373" y1="176" x2="727" y2="800"
+          stroke="#EDE0C4" stroke-width="52" stroke-linecap="butt"/>
   </g>
-
-  <!-- Note stem -->
-  <rect
-    x="590.4713951067172"
-    y="204.79999999999995"
-    width="28.672"
-    height="350.72"
-    fill="#D4A853"
-    rx="11.468800000000002"
-  />
-
-  <!-- Eighth note flag (elegant curve) -->
-  <path
-    d="M 619.1433951067172 204.79999999999995
-       C 727.6873951067172 266.23999999999995, 748.1673951067172 368.64, 656.0073951067172 430.0799999999999"
-    fill="none"
-    stroke="#D4A853"
-    stroke-width="28.672"
-    stroke-linecap="round"
-  />
-
-  <!-- Note head -->
-  <ellipse
-    cx="512"
-    cy="593.92"
-    rx="117.76"
-    ry="76.8"
-    fill="#D4A853"
-    transform="rotate(-22, 512, 593.92)"
-  />
 
 </svg>

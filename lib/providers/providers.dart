@@ -5,6 +5,7 @@ import '../data/repositories/song_repository.dart';
 import '../data/repositories/setlist_repository.dart';
 import '../data/repositories/composer_repository.dart';
 import '../data/repositories/collection_repository.dart';
+import '../data/repositories/backup_repository.dart';
 import '../domain/models/song.dart';
 import '../domain/models/setlist.dart';
 import '../domain/models/setlist_item.dart';
@@ -16,6 +17,7 @@ final songRepositoryProvider = Provider<SongRepository>((_) => SongRepository())
 final setlistRepositoryProvider = Provider<SetlistRepository>((_) => SetlistRepository());
 final composerRepositoryProvider = Provider<ComposerRepository>((_) => ComposerRepository());
 final collectionRepositoryProvider = Provider<CollectionRepository>((_) => CollectionRepository());
+final backupRepositoryProvider = Provider<BackupRepository>((_) => BackupRepository());
 
 // Songs
 final songsProvider = FutureProvider.family<List<Song>, String?>((ref, query) async {
