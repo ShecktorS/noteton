@@ -302,8 +302,18 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (song.composerName != null)
-                Text(song.composerName!,
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                GestureDetector(
+                  onTap: () => context.push('/composers/${song.composerId}'),
+                  child: Text(
+                    song.composerName!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
               Wrap(
                 spacing: 6,
                 runSpacing: 2,
@@ -1128,11 +1138,22 @@ class _SongGridCard extends StatelessWidget {
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       if (song.composerName != null)
-                        Text(
-                          song.composerName!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodySmall,
+                        GestureDetector(
+                          onTap: () =>
+                              context.push('/composers/${song.composerId}'),
+                          child: Text(
+                            song.composerName!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                  color:
+                                      Theme.of(context).colorScheme.primary,
+                                  decoration: TextDecoration.underline,
+                                ),
+                          ),
                         ),
                       if (song.lastPage > 0 && song.totalPages > 0)
                         Text(

@@ -60,6 +60,21 @@ class SongRepository {
     );
   }
 
+  Future<List<Song>> getByComposerId(int composerId) async {
+    final db = await _db;
+    final rows = await db.rawQuery(
+      '''
+      SELECT s.*, c.name AS composer_name
+      FROM songs s
+      LEFT JOIN composers c ON s.composer_id = c.id
+      WHERE s.composer_id = ?
+      ORDER BY s.title ASC
+      ''',
+      [composerId],
+    );
+    return rows.map(Song.fromMap).toList();
+  }
+
   Future<void> updateLastPage(int songId, int page) async {
     final db = await _db;
     await db.update(

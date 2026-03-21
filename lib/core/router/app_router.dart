@@ -8,6 +8,7 @@ import '../../presentation/performance/performance_screen.dart';
 import '../../presentation/settings/settings_screen.dart';
 import '../../presentation/collections/collections_screen.dart';
 import '../../presentation/collections/collection_detail_screen.dart';
+import '../../presentation/composer/composer_detail_screen.dart';
 import '../../core/constants/app_constants.dart';
 
 // Fade istantaneo per le route tab (no slide)
@@ -71,6 +72,14 @@ final appRouter = GoRouter(
     GoRoute(
       path: AppConstants.routeSettings,
       pageBuilder: (context, state) => _fadePage(state, const SettingsScreen()),
+    ),
+    GoRoute(
+      path: '/composers/:composerId',
+      builder: (context, state) {
+        final composerId =
+            int.tryParse(state.pathParameters['composerId'] ?? '') ?? 0;
+        return ComposerDetailScreen(composerId: composerId);
+      },
     ),
   ],
 );
