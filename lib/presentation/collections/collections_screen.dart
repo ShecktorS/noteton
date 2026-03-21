@@ -33,6 +33,11 @@ class CollectionsScreen extends ConsumerWidget {
                   const SizedBox(height: 8),
                   const Text('Tocca + per creare una raccolta',
                       style: TextStyle(color: Colors.grey)),
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () => _showInfoDialog(context),
+                    child: const Text('Cosa sono le Raccolte?'),
+                  ),
                 ],
               ),
             );
@@ -58,6 +63,24 @@ class CollectionsScreen extends ConsumerWidget {
         child: const Icon(Icons.add),
       ),
       bottomNavigationBar: const AppBottomNav(currentIndex: 2),
+    );
+  }
+
+  void _showInfoDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cosa sono le Raccolte?'),
+        content: const Text(
+          'Le Raccolte sono cartelle colorate per organizzare i tuoi spartiti per genere, strumento o qualsiasi categoria tu voglia — indipendentemente dalle setlist.',
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Capito'),
+          ),
+        ],
+      ),
     );
   }
 

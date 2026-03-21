@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../presentation/library/library_screen.dart';
 import '../../presentation/viewer/pdf_viewer_page.dart';
@@ -9,12 +10,22 @@ import '../../presentation/collections/collections_screen.dart';
 import '../../presentation/collections/collection_detail_screen.dart';
 import '../../core/constants/app_constants.dart';
 
+// Fade istantaneo per le route tab (no slide)
+Page<void> _fadePage(GoRouterState state, Widget child) =>
+    CustomTransitionPage<void>(
+      key: state.pageKey,
+      child: child,
+      transitionDuration: const Duration(milliseconds: 180),
+      transitionsBuilder: (_, animation, __, child) =>
+          FadeTransition(opacity: animation, child: child),
+    );
+
 final appRouter = GoRouter(
   initialLocation: AppConstants.routeLibrary,
   routes: [
     GoRoute(
       path: AppConstants.routeLibrary,
-      builder: (context, state) => const LibraryScreen(),
+      pageBuilder: (context, state) => _fadePage(state, const LibraryScreen()),
     ),
     GoRoute(
       path: '${AppConstants.routeViewer}/:songId',
@@ -25,7 +36,7 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: AppConstants.routeSetlists,
-      builder: (context, state) => const SetlistScreen(),
+      pageBuilder: (context, state) => _fadePage(state, const SetlistScreen()),
       routes: [
         GoRoute(
           path: ':setlistId',
@@ -46,7 +57,7 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: AppConstants.routeCollections,
-      builder: (context, state) => const CollectionsScreen(),
+      pageBuilder: (context, state) => _fadePage(state, const CollectionsScreen()),
       routes: [
         GoRoute(
           path: ':collectionId',
@@ -59,7 +70,7 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: AppConstants.routeSettings,
-      builder: (context, state) => const SettingsScreen(),
+      pageBuilder: (context, state) => _fadePage(state, const SettingsScreen()),
     ),
   ],
 );

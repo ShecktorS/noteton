@@ -33,6 +33,11 @@ class SetlistScreen extends ConsumerWidget {
                   const SizedBox(height: 8),
                   const Text('Tocca + per crearne una',
                       style: TextStyle(color: Colors.grey)),
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: () => _showInfoDialog(context),
+                    child: const Text('Cosa sono le Setlist?'),
+                  ),
                 ],
               ),
             );
@@ -131,6 +136,24 @@ class SetlistScreen extends ConsumerWidget {
         child: const Icon(Icons.add),
       ),
       bottomNavigationBar: const AppBottomNav(currentIndex: 1),
+    );
+  }
+
+  void _showInfoDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cosa sono le Setlist?'),
+        content: const Text(
+          'Una Setlist è la scaletta di un concerto: una lista ordinata di brani da eseguire, con la possibilità di avviarli uno dopo l\'altro in modalità Performance.',
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Capito'),
+          ),
+        ],
+      ),
     );
   }
 
