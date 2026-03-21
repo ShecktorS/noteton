@@ -77,8 +77,74 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   void _exitSelectionMode() => setState(() => _selectedIds.clear());
 
   @override
+  List<Song> _applySortOrder(List<Song> songs, SortOrder order) {
+    final list = List<Song>.from(songs);
+    switch (order) {
+      case SortOrder.titleAZ:
+        list.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+      case SortOrder.titleZA:
+        list.sort((a, b) => b.title.toLowerCase().compareTo(a.title.toLowerCase()));
+      case SortOrder.newestFirst:
+        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      case SortOrder.lastOpened:
+        list.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    }
+    return list;
+  }
+
+  void _showSortMenu(BuildContext context) {
+    final current = ref.read(sortOrderProvider);
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Ordina per',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+              ),
+            ),
+            for (final option in SortOrder.values)
+              ListTile(
+                leading: Icon(_sortIcon(option)),
+                title: Text(_sortLabel(option)),
+                trailing: current == option
+                    ? const Icon(Icons.check, size: 18)
+                    : null,
+                onTap: () {
+                  ref.read(sortOrderProvider.notifier).state = option;
+                  Navigator.pop(context);
+                },
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  IconData _sortIcon(SortOrder o) => switch (o) {
+        SortOrder.titleAZ => Icons.sort_by_alpha,
+        SortOrder.titleZA => Icons.sort_by_alpha,
+        SortOrder.newestFirst => Icons.calendar_today,
+        SortOrder.lastOpened => Icons.history,
+      };
+
+  String _sortLabel(SortOrder o) => switch (o) {
+        SortOrder.titleAZ => 'Titolo A → Z',
+        SortOrder.titleZA => 'Titolo Z → A',
+        SortOrder.newestFirst => 'Più recenti',
+        SortOrder.lastOpened => 'Ultima apertura',
+      };
+
+  @override
   Widget build(BuildContext context) {
     final query = ref.watch(searchQueryProvider);
+    final sortOrder = ref.watch(sortOrderProvider);
     final songsAsync = ref.watch(songsProvider(query.isEmpty ? null : query));
 
     return Scaffold(
@@ -103,6 +169,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 IconButton(
                   icon: const Icon(Icons.search),
                   onPressed: () => _showSearch(context),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.sort),
+                  tooltip: 'Ordina',
+                  onPressed: () => _showSortMenu(context),
                 ),
                 Stack(
                   children: [
@@ -131,9 +202,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         error: (e, _) => Center(child: Text('Errore: $e')),
         data: (songs) {
           // Applica filtro status se attivo
-          final filtered = _statusFilter == null
+          final statusFiltered = _statusFilter == null
               ? songs
               : songs.where((s) => s.status == _statusFilter).toList();
+          // Applica ordinamento
+          final filtered = _applySortOrder(statusFiltered, sortOrder);
 
           if (filtered.isEmpty) {
             return Center(

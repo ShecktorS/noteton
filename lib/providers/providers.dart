@@ -55,6 +55,11 @@ final collectionByIdProvider = FutureProvider.family<Collection?, int>((ref, col
 // Search query state
 final searchQueryProvider = StateProvider<String>((ref) => '');
 
+// Sort order
+enum SortOrder { titleAZ, titleZA, newestFirst, lastOpened }
+
+final sortOrderProvider = StateProvider<SortOrder>((ref) => SortOrder.titleAZ);
+
 // ── Theme mode ───────────────────────────────────────────────────────────────
 class ThemeModeNotifier extends StateNotifier<ThemeMode> {
   static const _key = 'theme_mode';
