@@ -45,17 +45,30 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
       }
 
       final initialPage = song.lastPage > 0 ? song.lastPage : 1;
+
+      // Open the document to get the real page count (in case DB has 0)
+      final doc = await PdfDocument.openFile(song.filePath);
+      final actualTotalPages = doc.pagesCount;
+
       final controller = PdfController(
-        document: PdfDocument.openFile(song.filePath),
+        document: Future.value(doc),
         initialPage: initialPage,
       );
+
+      // Persist correct totalPages if import failed to count them
+      if (song.totalPages != actualTotalPages) {
+        ref.read(songRepositoryProvider).update(
+              song.copyWith(totalPages: actualTotalPages),
+            );
+        ref.invalidate(songsProvider);
+      }
 
       if (mounted) {
         setState(() {
           _title = song.title;
           _pdfController = controller;
           _currentPage = initialPage;
-          _totalPages = song.totalPages;
+          _totalPages = actualTotalPages;
           _loading = false;
         });
       }
