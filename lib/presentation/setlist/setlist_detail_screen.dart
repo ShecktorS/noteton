@@ -74,13 +74,6 @@ class _SetlistDetailScreenState extends ConsumerState<SetlistDetailScreen> {
     ref.read(setlistRepositoryProvider).reorderItems(widget.setlistId, _items);
   }
 
-  // ── Remove single ────────────────────────────────────────────────────────────
-
-  Future<void> _removeItem(SetlistItem item) async {
-    await ref.read(setlistRepositoryProvider).removeItem(item.id!);
-    await _reload();
-    ref.read(setlistRepositoryProvider).reorderItems(widget.setlistId, _items);
-  }
 
   // ── Remove selected ──────────────────────────────────────────────────────────
 

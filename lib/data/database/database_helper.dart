@@ -19,7 +19,7 @@ class DatabaseHelper {
     String path;
     try {
       final dbPath = await getDatabasesPath();
-      path = join(dbPath ?? '.', _databaseName);
+      path = join(dbPath, _databaseName);
     } catch (_) {
       path = _databaseName;
     }
