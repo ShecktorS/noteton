@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
@@ -14,6 +15,10 @@ class DatabaseHelper {
     _db ??= await _initDatabase();
     return _db!;
   }
+
+  // ignore: invalid_use_of_visible_for_testing_member
+  @visibleForTesting
+  void setTestDatabase(Database db) => _db = db;
 
   Future<Database> _initDatabase() async {
     String path;
