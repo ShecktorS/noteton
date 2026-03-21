@@ -304,28 +304,33 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               if (song.composerName != null)
                 Text(song.composerName!,
                     maxLines: 1, overflow: TextOverflow.ellipsis),
-              Row(
+              Wrap(
+                spacing: 6,
+                runSpacing: 2,
                 children: [
                   if (song.lastPage > 0 && song.totalPages > 0)
                     Text(
-                      'Pag. ${song.lastPage} / ${song.totalPages}',
+                      'Pag. ${song.lastPage}/${song.totalPages}',
                       style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 10,
                           color: Theme.of(context).colorScheme.primary),
                     ),
-                  if (song.lastPage > 0 && song.totalPages > 0 && song.status != SongStatus.none)
-                    const SizedBox(width: 8),
                   if (song.status != SongStatus.none)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: song.status.color.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: song.status.color.withOpacity(0.5)),
-                      ),
-                      child: Text(song.status.label,
-                          style: TextStyle(fontSize: 9, color: song.status.color,
-                              fontWeight: FontWeight.w600)),
+                    _MetaBadge(label: song.status.label, color: song.status.color),
+                  if (song.keySignature != null)
+                    _MetaBadge(
+                      label: song.keySignature!,
+                      color: Theme.of(context).colorScheme.tertiary,
+                    ),
+                  if (song.bpm != null)
+                    _MetaBadge(
+                      label: '${song.bpm} BPM',
+                      color: Theme.of(context).colorScheme.secondary,
+                    ),
+                  if (song.instrument != null)
+                    _MetaBadge(
+                      label: song.instrument!,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                 ],
               ),
@@ -502,64 +507,121 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   // ── Edit dialog ─────────────────────────────────────────────────────────────
 
+  static const _keySignatures = [
+    'C', 'C#', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B',
+    'Cm', 'C#m', 'Dm', 'Ebm', 'Em', 'Fm', 'F#m', 'Gm', 'Abm', 'Am', 'Bbm', 'Bm',
+  ];
+
+  static const _instruments = [
+    'Pianoforte', 'Organo', 'Chitarra', 'Chitarra Basso', 'Violino', 'Viola',
+    'Violoncello', 'Contrabbasso', 'Flauto', 'Oboe', 'Clarinetto', 'Fagotto',
+    'Sassofono', 'Tromba', 'Corno', 'Trombone', 'Tuba', 'Percussioni',
+    'Voce', 'Ensemble', 'Altro',
+  ];
+
   Future<void> _showEditDialog(BuildContext context, Song song) async {
     final titleCtrl = TextEditingController(text: song.title);
     final authorCtrl = TextEditingController(text: song.composerName ?? '');
+    final bpmCtrl = TextEditingController(text: song.bpm != null ? '${song.bpm}' : '');
+    String? selectedKey = song.keySignature;
+    String? selectedInstrument = song.instrument;
+
     try {
       final confirmed = await showDialog<bool>(
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Modifica dettagli'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titleCtrl,
-                decoration: const InputDecoration(labelText: 'Titolo'),
-                autofocus: true,
-                textCapitalization: TextCapitalization.sentences,
+        builder: (ctx) => StatefulBuilder(
+          builder: (ctx, setDialogState) => AlertDialog(
+            title: const Text('Modifica dettagli'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: titleCtrl,
+                    decoration: const InputDecoration(labelText: 'Titolo'),
+                    autofocus: true,
+                    textCapitalization: TextCapitalization.sentences,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: authorCtrl,
+                    decoration: const InputDecoration(labelText: 'Autore (opzionale)'),
+                    textCapitalization: TextCapitalization.words,
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: selectedKey,
+                    decoration: const InputDecoration(labelText: 'Tonalità'),
+                    isExpanded: true,
+                    items: [
+                      const DropdownMenuItem(value: null, child: Text('—')),
+                      ..._keySignatures.map((k) =>
+                          DropdownMenuItem(value: k, child: Text(k))),
+                    ],
+                    onChanged: (v) => setDialogState(() => selectedKey = v),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: bpmCtrl,
+                    decoration: const InputDecoration(labelText: 'BPM (opzionale)'),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: selectedInstrument,
+                    decoration: const InputDecoration(labelText: 'Strumento'),
+                    isExpanded: true,
+                    items: [
+                      const DropdownMenuItem(value: null, child: Text('—')),
+                      ..._instruments.map((s) =>
+                          DropdownMenuItem(value: s, child: Text(s))),
+                    ],
+                    onChanged: (v) => setDialogState(() => selectedInstrument = v),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: authorCtrl,
-                decoration: const InputDecoration(labelText: 'Autore (opzionale)'),
-                textCapitalization: TextCapitalization.words,
-              ),
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Annulla')),
+              FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('Salva')),
             ],
           ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Annulla')),
-            FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Salva')),
-          ],
         ),
       );
       if (confirmed != true || !context.mounted) return;
+
       final newTitle = titleCtrl.text.trim().isEmpty ? song.title : titleCtrl.text.trim();
       final newAuthor = authorCtrl.text.trim().isEmpty ? null : authorCtrl.text.trim();
+      final newBpm = int.tryParse(bpmCtrl.text.trim());
+
       int? composerId;
       if (newAuthor != null) {
         final composer = await ref.read(composerRepositoryProvider).findOrCreate(newAuthor);
         composerId = composer.id;
       }
       if (!context.mounted) return;
-      await ref.read(songRepositoryProvider).update(Song(
-        id: song.id,
+
+      await ref.read(songRepositoryProvider).update(song.copyWith(
         title: newTitle,
         composerId: composerId,
-        filePath: song.filePath,
-        totalPages: song.totalPages,
-        lastPage: song.lastPage,
-        createdAt: song.createdAt,
+        clearComposerId: newAuthor == null,
+        keySignature: selectedKey,
+        clearKeySignature: selectedKey == null,
+        bpm: newBpm,
+        clearBpm: newBpm == null,
+        instrument: selectedInstrument,
+        clearInstrument: selectedInstrument == null,
         updatedAt: DateTime.now(),
       ));
       ref.invalidate(songsProvider);
     } finally {
       titleCtrl.dispose();
       authorCtrl.dispose();
+      bpmCtrl.dispose();
     }
   }
 
@@ -1263,6 +1325,30 @@ class _AlphaScrollBarState extends State<_AlphaScrollBar> {
           ),
         );
       },
+    );
+  }
+}
+
+// ── Meta badge ────────────────────────────────────────────────────────────────
+
+class _MetaBadge extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _MetaBadge({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 9, color: color, fontWeight: FontWeight.w600),
+      ),
     );
   }
 }

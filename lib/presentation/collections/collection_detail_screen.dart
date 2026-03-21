@@ -278,6 +278,7 @@ class _AddSongsDialogState extends ConsumerState<_AddSongsDialog> {
   final Set<int> _selectedIds = {};
   final TextEditingController _searchCtrl = TextEditingController();
   bool _loading = true;
+  bool _searchVisible = false;
 
   List<Song> get _filtered {
     final q = _searchCtrl.text.trim().toLowerCase();
@@ -329,7 +330,19 @@ class _AddSongsDialogState extends ConsumerState<_AddSongsDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text('Aggiungi a "${widget.collectionName}"'),
+      title: Row(
+        children: [
+          Expanded(child: Text('Aggiungi a "${widget.collectionName}"')),
+          IconButton(
+            icon: Icon(_searchVisible ? Icons.search_off : Icons.search),
+            tooltip: 'Cerca',
+            onPressed: () => setState(() {
+              _searchVisible = !_searchVisible;
+              if (!_searchVisible) _searchCtrl.clear();
+            }),
+          ),
+        ],
+      ),
       content: SizedBox(
         width: double.maxFinite,
         child: _loading
@@ -341,6 +354,7 @@ class _AddSongsDialogState extends ConsumerState<_AddSongsDialog> {
                 : Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      if (_searchVisible) ...[
                       TextField(
                         controller: _searchCtrl,
                         autofocus: true,
@@ -357,6 +371,7 @@ class _AddSongsDialogState extends ConsumerState<_AddSongsDialog> {
                         ),
                       ),
                       const SizedBox(height: 8),
+                      ],
                       if (_filtered.isEmpty)
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 16),

@@ -247,6 +247,7 @@ class _SetlistDetailScreenState extends ConsumerState<SetlistDetailScreen> {
 
     final selected = <int>{};
     final searchCtrl = TextEditingController();
+    var searchVisible = false;
 
     await showModalBottomSheet(
       context: context,
@@ -278,17 +279,26 @@ class _SetlistDetailScreenState extends ConsumerState<SetlistDetailScreen> {
                       ),
                       const Spacer(),
                       IconButton(
+                        icon: Icon(searchVisible ? Icons.search_off : Icons.search),
+                        tooltip: 'Cerca',
+                        onPressed: () => setSheetState(() {
+                          searchVisible = !searchVisible;
+                          if (!searchVisible) searchCtrl.clear();
+                        }),
+                      ),
+                      IconButton(
                         icon: const Icon(Icons.close),
                         onPressed: () => Navigator.pop(ctx),
                       ),
                     ],
                   ),
                 ),
+                if (searchVisible)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                   child: TextField(
                     controller: searchCtrl,
-                    autofocus: false,
+                    autofocus: true,
                     onChanged: (_) => setSheetState(() {}),
                     decoration: InputDecoration(
                       hintText: 'Cerca brano...',

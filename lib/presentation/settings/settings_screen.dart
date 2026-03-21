@@ -130,7 +130,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const ListTile(
                 leading: Icon(Icons.info_outline),
                 title: Text('Versione'),
-                subtitle: Text('Noteton 0.1.0'),
+                subtitle: Text('Noteton 0.2.0'),
               ),
               const ListTile(
                 leading: Icon(Icons.balance),

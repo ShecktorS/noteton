@@ -58,6 +58,9 @@ class Song {
   final DateTime createdAt;
   final DateTime updatedAt;
   final SongStatus status;
+  final String? keySignature;
+  final int? bpm;
+  final String? instrument;
 
   // Optional joined data (not stored in songs table directly)
   final String? composerName;
@@ -73,6 +76,9 @@ class Song {
     required this.createdAt,
     required this.updatedAt,
     this.status = SongStatus.none,
+    this.keySignature,
+    this.bpm,
+    this.instrument,
     this.composerName,
     this.tags = const [],
   });
@@ -88,6 +94,9 @@ class Song {
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
       status: SongStatus.fromDb(map['status'] as String?),
+      keySignature: map['key_signature'] as String?,
+      bpm: map['bpm'] as int?,
+      instrument: map['instrument'] as String?,
       composerName: map['composer_name'] as String?,
     );
   }
@@ -103,6 +112,9 @@ class Song {
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
       'status': status.dbValue,
+      'key_signature': keySignature,
+      'bpm': bpm,
+      'instrument': instrument,
     };
   }
 
@@ -116,19 +128,30 @@ class Song {
     DateTime? createdAt,
     DateTime? updatedAt,
     SongStatus? status,
+    String? keySignature,
+    int? bpm,
+    String? instrument,
     String? composerName,
     List<String>? tags,
+    // Sentinel per azzerare valori nullable
+    bool clearKeySignature = false,
+    bool clearBpm = false,
+    bool clearInstrument = false,
+    bool clearComposerId = false,
   }) {
     return Song(
       id: id ?? this.id,
       title: title ?? this.title,
-      composerId: composerId ?? this.composerId,
+      composerId: clearComposerId ? null : composerId ?? this.composerId,
       filePath: filePath ?? this.filePath,
       totalPages: totalPages ?? this.totalPages,
       lastPage: lastPage ?? this.lastPage,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       status: status ?? this.status,
+      keySignature: clearKeySignature ? null : keySignature ?? this.keySignature,
+      bpm: clearBpm ? null : bpm ?? this.bpm,
+      instrument: clearInstrument ? null : instrument ?? this.instrument,
       composerName: composerName ?? this.composerName,
       tags: tags ?? this.tags,
     );

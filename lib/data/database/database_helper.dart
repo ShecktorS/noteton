@@ -3,7 +3,7 @@ import 'package:path/path.dart';
 
 class DatabaseHelper {
   static const _databaseName = 'noteton.db';
-  static const _databaseVersion = 3;
+  static const _databaseVersion = 4;
 
   DatabaseHelper._();
   static final DatabaseHelper instance = DatabaseHelper._();
@@ -45,15 +45,18 @@ class DatabaseHelper {
 
     await db.execute('''
       CREATE TABLE songs (
-        id           INTEGER PRIMARY KEY AUTOINCREMENT,
-        title        TEXT NOT NULL,
-        composer_id  INTEGER REFERENCES composers(id) ON DELETE SET NULL,
-        file_path    TEXT NOT NULL,
-        total_pages  INTEGER NOT NULL DEFAULT 0,
-        last_page    INTEGER NOT NULL DEFAULT 0,
-        created_at   TEXT NOT NULL,
-        updated_at   TEXT NOT NULL,
-        status       TEXT NOT NULL DEFAULT 'none'
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        title          TEXT NOT NULL,
+        composer_id    INTEGER REFERENCES composers(id) ON DELETE SET NULL,
+        file_path      TEXT NOT NULL,
+        total_pages    INTEGER NOT NULL DEFAULT 0,
+        last_page      INTEGER NOT NULL DEFAULT 0,
+        created_at     TEXT NOT NULL,
+        updated_at     TEXT NOT NULL,
+        status         TEXT NOT NULL DEFAULT 'none',
+        key_signature  TEXT,
+        bpm            INTEGER,
+        instrument     TEXT
       )
     ''');
 
@@ -155,6 +158,11 @@ class DatabaseHelper {
       await db.execute(
         "ALTER TABLE songs ADD COLUMN status TEXT NOT NULL DEFAULT 'none'",
       );
+    }
+    if (oldVersion < 4) {
+      await db.execute('ALTER TABLE songs ADD COLUMN key_signature TEXT');
+      await db.execute('ALTER TABLE songs ADD COLUMN bpm INTEGER');
+      await db.execute('ALTER TABLE songs ADD COLUMN instrument TEXT');
     }
   }
 }
