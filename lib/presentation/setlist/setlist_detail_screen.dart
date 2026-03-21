@@ -245,65 +245,95 @@ class _SetlistDetailScreenState extends ConsumerState<SetlistDetailScreen> {
       return;
     }
 
+    final selected = <int>{};
+
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (ctx) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.6,
-        maxChildSize: 0.9,
-        builder: (_, scrollCtrl) => Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Row(
-                children: [
-                  Text('Aggiungi spartito',
-                      style: Theme.of(ctx).textTheme.titleMedium),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
-                ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.6,
+          maxChildSize: 0.9,
+          builder: (_, scrollCtrl) => Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Row(
+                  children: [
+                    Text(
+                      selected.isEmpty
+                          ? 'Aggiungi spartiti'
+                          : '${selected.length} selezionat${selected.length == 1 ? 'o' : 'i'}',
+                      style: Theme.of(ctx).textTheme.titleMedium,
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const Divider(height: 1),
-            Expanded(
-              child: ListView.builder(
-                controller: scrollCtrl,
-                itemCount: available.length,
-                itemBuilder: (ctx, i) {
-                  final song = available[i];
-                  return ListTile(
-                    title: Text(song.title,
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                    subtitle: song.composerName != null
-                        ? Text(song.composerName!)
-                        : null,
-                    trailing: const Icon(Icons.add),
-                    onTap: () async {
-                      Navigator.pop(ctx);
-                      final count = await ref
-                          .read(setlistRepositoryProvider)
-                          .getItemCount(widget.setlistId);
-                      await ref.read(setlistRepositoryProvider).addItem(
-                            SetlistItem(
-                              setlistId: widget.setlistId,
-                              songId: song.id!,
-                              position: count,
-                            ),
-                          );
-                      await _reload();
-                    },
-                  );
-                },
+              const Divider(height: 1),
+              Expanded(
+                child: ListView.builder(
+                  controller: scrollCtrl,
+                  itemCount: available.length,
+                  itemBuilder: (ctx, i) {
+                    final song = available[i];
+                    final isSelected = selected.contains(song.id);
+                    return CheckboxListTile(
+                      value: isSelected,
+                      onChanged: (_) => setSheetState(() {
+                        if (isSelected) {
+                          selected.remove(song.id);
+                        } else {
+                          selected.add(song.id!);
+                        }
+                      }),
+                      title: Text(song.title,
+                          maxLines: 1, overflow: TextOverflow.ellipsis),
+                      subtitle: song.composerName != null
+                          ? Text(song.composerName!)
+                          : null,
+                      controlAffinity: ListTileControlAffinity.leading,
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                    16, 8, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
+                child: FilledButton.icon(
+                  onPressed: selected.isEmpty
+                      ? null
+                      : () => Navigator.pop(ctx),
+                  icon: const Icon(Icons.add),
+                  label: Text(selected.isEmpty
+                      ? 'Seleziona brani'
+                      : 'Aggiungi ${selected.length} bran${selected.length == 1 ? 'o' : 'i'}'),
+                  style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48)),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
+
+    if (selected.isEmpty) return;
+    final repo = ref.read(setlistRepositoryProvider);
+    int count = await repo.getItemCount(widget.setlistId);
+    for (final songId in selected) {
+      await repo.addItem(SetlistItem(
+        setlistId: widget.setlistId,
+        songId: songId,
+        position: count++,
+      ));
+    }
+    await _reload();
   }
 
   // ── Build ────────────────────────────────────────────────────────────────────
