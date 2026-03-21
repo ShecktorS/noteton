@@ -1141,19 +1141,18 @@ class _SongGridCard extends StatelessWidget {
                               fontSize: 10,
                               color: Theme.of(context).colorScheme.primary),
                         ),
-                      if (song.status != SongStatus.none)
-                        Container(
-                          margin: const EdgeInsets.only(top: 4),
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: song.status.color.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: song.status.color.withOpacity(0.5), width: 1),
-                          ),
-                          child: Text(
-                            song.status.label,
-                            style: TextStyle(fontSize: 9, color: song.status.color,
-                                fontWeight: FontWeight.w600),
+                      if (song.status != SongStatus.none || song.keySignature != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Wrap(
+                            spacing: 4,
+                            runSpacing: 2,
+                            children: [
+                              if (song.status != SongStatus.none)
+                                _MetaBadge(label: song.status.label, color: song.status.color),
+                              if (song.keySignature != null)
+                                _MetaBadge(label: song.keySignature!, color: const Color(0xFF4A90D9)),
+                            ],
                           ),
                         ),
                     ],
