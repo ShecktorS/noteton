@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pdfx/pdfx.dart';
 
+import '../../domain/models/song.dart';
 import '../../providers/providers.dart';
 
 class PdfViewerPage extends ConsumerStatefulWidget {
@@ -23,6 +24,7 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
   int _totalPages = 0;
   bool _appBarVisible = true;
   bool _standMode = false;
+  Song? _songCache;
 
   @override
   void initState() {
@@ -44,9 +46,9 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
         return;
       }
 
+      _songCache = song;
       final initialPage = song.lastPage > 0 ? song.lastPage : 1;
 
-      // Open the document to get the real page count (in case DB has 0)
       final doc = await PdfDocument.openFile(song.filePath);
       final actualTotalPages = doc.pagesCount;
 
@@ -55,20 +57,13 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
         initialPage: initialPage,
       );
 
-      // Persist correct totalPages if import failed to count them
-      if (song.totalPages != actualTotalPages) {
-        ref.read(songRepositoryProvider).update(
-              song.copyWith(totalPages: actualTotalPages),
-            );
-        ref.invalidate(songsProvider);
-      }
-
       if (mounted) {
         setState(() {
           _title = song.title;
           _pdfController = controller;
           _currentPage = initialPage;
-          _totalPages = actualTotalPages;
+          // Use actual count from file; onDocumentLoaded corrects it if still 0
+          _totalPages = actualTotalPages > 0 ? actualTotalPages : song.totalPages;
           _loading = false;
         });
       }
@@ -79,6 +74,21 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
           _loading = false;
         });
       }
+    }
+  }
+
+  void _onDocumentLoaded(PdfDocument doc) {
+    final realPages = doc.pagesCount;
+    if (_totalPages != realPages && realPages > 0) {
+      setState(() => _totalPages = realPages);
+    }
+    // Persist correct totalPages to DB
+    final song = _songCache;
+    if (song != null && song.totalPages != realPages && realPages > 0) {
+      ref.read(songRepositoryProvider).update(
+            song.copyWith(totalPages: realPages),
+          );
+      ref.invalidate(songsProvider);
     }
   }
 
@@ -174,6 +184,7 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
           child: PdfView(
             controller: _pdfController!,
             onPageChanged: _onPageChanged,
+            onDocumentLoaded: _onDocumentLoaded,
             scrollDirection: Axis.horizontal,
             pageSnapping: true,
           ),
