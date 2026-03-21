@@ -33,6 +33,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   _ViewMode _viewMode = _ViewMode.grid;
   final Set<int> _selectedIds = {};
   SongStatus? _statusFilter; // null = mostra tutti
+  final ScrollController _scrollController = ScrollController();
 
   static const _prefKey = 'library_view_mode';
 
@@ -42,6 +43,12 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   void initState() {
     super.initState();
     _loadViewMode();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadViewMode() async {
@@ -148,9 +155,19 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               ),
             );
           }
-          return _viewMode == _ViewMode.grid
+          final content = _viewMode == _ViewMode.grid
               ? _buildGrid(filtered)
               : _buildList(filtered);
+          return Row(
+            children: [
+              Expanded(child: content),
+              _AlphaScrollBar(
+                songs: filtered,
+                onLetterSelected: (letter) =>
+                    _scrollToLetter(letter, filtered, context),
+              ),
+            ],
+          );
         },
       ),
       floatingActionButton: _inSelectionMode
@@ -184,10 +201,52 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
+  // ── Alpha scroll ────────────────────────────────────────────────────────────
+
+  void _scrollToLetter(String letter, List<Song> songs, BuildContext context) {
+    int targetIndex = -1;
+    for (int i = 0; i < songs.length; i++) {
+      final title = songs[i].title.trim();
+      final first =
+          title.isNotEmpty ? title[0].toUpperCase() : '#';
+      if (letter == '#') {
+        if (!RegExp(r'[A-Z]').hasMatch(first)) {
+          targetIndex = i;
+          break;
+        }
+      } else if (first == letter) {
+        targetIndex = i;
+        break;
+      }
+    }
+    if (targetIndex < 0 || !_scrollController.hasClients) return;
+
+    double offset;
+    if (_viewMode == _ViewMode.grid) {
+      // 20px per la nav A-Z già sottratta dall'Expanded
+      final screenWidth = MediaQuery.of(context).size.width - 20;
+      final itemWidth = (screenWidth - 32 - 12) / 2;
+      final itemHeight = itemWidth / 0.7;
+      final rowIndex = targetIndex ~/ 2;
+      offset = 16 + rowIndex * (itemHeight + 12);
+    } else {
+      // ListTile con subtitle ≈ 80px
+      offset = targetIndex * 80.0;
+    }
+
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    _scrollController.animateTo(
+      offset.clamp(0.0, maxScroll),
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOut,
+    );
+  }
+
   // ── Grid view ───────────────────────────────────────────────────────────────
 
   Widget _buildGrid(List<Song> songs) {
     return GridView.builder(
+      controller: _scrollController,
       padding: const EdgeInsets.all(16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
@@ -220,6 +279,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   Widget _buildList(List<Song> songs) {
     return ListView.builder(
+      controller: _scrollController,
       padding: const EdgeInsets.symmetric(vertical: 8),
       itemCount: songs.length,
       itemBuilder: (context, i) {
@@ -1117,4 +1177,92 @@ class _SongSearchDelegate extends SearchDelegate<String> {
 
   @override
   Widget buildSuggestions(BuildContext context) => const SizedBox.shrink();
+}
+
+// ── A-Z Scroll Bar ────────────────────────────────────────────────────────────
+
+class _AlphaScrollBar extends StatefulWidget {
+  final List<Song> songs;
+  final void Function(String letter) onLetterSelected;
+
+  const _AlphaScrollBar({
+    required this.songs,
+    required this.onLetterSelected,
+  });
+
+  @override
+  State<_AlphaScrollBar> createState() => _AlphaScrollBarState();
+}
+
+class _AlphaScrollBarState extends State<_AlphaScrollBar> {
+  static const _letters = [
+    '#', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+    'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+  ];
+
+  String? _activeLetter;
+
+  // Returns true if at least one song starts with this letter
+  bool _hasLetter(String letter) {
+    return widget.songs.any((s) {
+      final first =
+          s.title.trim().isNotEmpty ? s.title.trim()[0].toUpperCase() : '#';
+      if (letter == '#') return !RegExp(r'[A-Z]').hasMatch(first);
+      return first == letter;
+    });
+  }
+
+  void _onDrag(Offset localPosition, BoxConstraints constraints) {
+    final frac = (localPosition.dy / constraints.maxHeight).clamp(0.0, 0.999);
+    final index = (frac * _letters.length).floor();
+    final letter = _letters[index];
+    if (letter != _activeLetter) {
+      setState(() => _activeLetter = letter);
+      widget.onLetterSelected(letter);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onVerticalDragStart: (d) => _onDrag(d.localPosition, constraints),
+          onVerticalDragUpdate: (d) => _onDrag(d.localPosition, constraints),
+          onVerticalDragEnd: (_) => setState(() => _activeLetter = null),
+          onTapDown: (d) {
+            _onDrag(d.localPosition, constraints);
+            setState(() => _activeLetter = null);
+          },
+          child: SizedBox(
+            width: 20,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: _letters.map((letter) {
+                final active = _activeLetter == letter;
+                final present = _hasLetter(letter);
+                return Expanded(
+                  child: Center(
+                    child: Text(
+                      letter,
+                      style: TextStyle(
+                        fontSize: active ? 13 : 9,
+                        fontWeight:
+                            active ? FontWeight.w700 : FontWeight.w500,
+                        color: present
+                            ? (active ? cs.primary : cs.onSurfaceVariant)
+                            : cs.onSurface.withValues(alpha: 0.2),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
