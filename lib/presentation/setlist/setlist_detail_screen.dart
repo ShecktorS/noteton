@@ -109,6 +109,124 @@ class _SetlistDetailScreenState extends ConsumerState<SetlistDetailScreen> {
     repo.reorderItems(widget.setlistId, _items);
   }
 
+  // ── Item options ─────────────────────────────────────────────────────────────
+
+  Future<void> _showItemOptions(
+      BuildContext context, SetlistItem item, int index) async {
+    await showModalBottomSheet(
+      context: context,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 8),
+          ListTile(
+            leading: const Icon(Icons.first_page_outlined),
+            title: const Text('Imposta pagina iniziale'),
+            subtitle: item.customStartPage > 0
+                ? Text('Attuale: pagina ${item.customStartPage}')
+                : const Text('Inizia dalla prima pagina'),
+            onTap: () {
+              Navigator.pop(ctx);
+              _showSetStartPageDialog(context, item);
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.remove_circle_outline,
+                color: Theme.of(context).colorScheme.error),
+            title: Text('Rimuovi dalla setlist',
+                style:
+                    TextStyle(color: Theme.of(context).colorScheme.error)),
+            onTap: () async {
+              Navigator.pop(ctx);
+              await ref
+                  .read(setlistRepositoryProvider)
+                  .removeItem(item.id!);
+              await _reload();
+              ref
+                  .read(setlistRepositoryProvider)
+                  .reorderItems(widget.setlistId, _items);
+            },
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showSetStartPageDialog(
+      BuildContext context, SetlistItem item) async {
+    final song = item.song!;
+    final maxPage = song.totalPages > 0 ? song.totalPages : 999;
+    final ctrl = TextEditingController(
+      text: item.customStartPage > 0 ? '${item.customStartPage}' : '',
+    );
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Pagina iniziale'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(song.title,
+                style: Theme.of(ctx).textTheme.bodySmall,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 12),
+            TextField(
+              controller: ctrl,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Pagina (1–$maxPage)',
+                hintText: '1',
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Usa ultima pagina letta'),
+            ),
+          ],
+        ),
+        actions: [
+          if (item.customStartPage > 0)
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(ctx, false);
+                final updated = item.copyWith(customStartPage: 0);
+                await ref
+                    .read(setlistRepositoryProvider)
+                    .updateItem(updated);
+                await _reload();
+              },
+              child: const Text('Reimposta'),
+            ),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annulla')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Salva')),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    int page = int.tryParse(ctrl.text.trim()) ?? 0;
+    // Se campo vuoto usa lastPage
+    if (ctrl.text.trim().isEmpty && song.lastPage > 0) {
+      page = song.lastPage;
+    }
+    page = page.clamp(0, maxPage);
+
+    final updated = item.copyWith(customStartPage: page);
+    await ref.read(setlistRepositoryProvider).updateItem(updated);
+    await _reload();
+  }
+
   // ── Add songs ────────────────────────────────────────────────────────────────
 
   Future<void> _showAddSongSheet(BuildContext context) async {
@@ -264,14 +382,53 @@ class _SetlistDetailScreenState extends ConsumerState<SetlistDetailScreen> {
                             ),
                       title: Text(song.title,
                           maxLines: 1, overflow: TextOverflow.ellipsis),
-                      subtitle: song.composerName != null
-                          ? Text(song.composerName!)
-                          : null,
+                      subtitle: Row(
+                        children: [
+                          if (song.composerName != null)
+                            Expanded(
+                              child: Text(song.composerName!,
+                                  maxLines: 1, overflow: TextOverflow.ellipsis),
+                            ),
+                          if (item.customStartPage > 0)
+                            Container(
+                              margin: EdgeInsets.only(
+                                  left: song.composerName != null ? 6 : 0),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primaryContainer,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                'Da pag. ${item.customStartPage}',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onPrimaryContainer,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                       trailing: _inSelectionMode
                           ? null
-                          : ReorderableDragStartListener(
-                              index: i,
-                              child: const Icon(Icons.drag_handle),
+                          : Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.more_vert, size: 20),
+                                  onPressed: () =>
+                                      _showItemOptions(context, item, i),
+                                ),
+                                ReorderableDragStartListener(
+                                  index: i,
+                                  child: const Icon(Icons.drag_handle),
+                                ),
+                              ],
                             ),
                       onTap: _inSelectionMode
                           ? () => _toggleSelection(item.id!)

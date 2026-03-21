@@ -69,10 +69,13 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
     _pdfController?.dispose();
     _pdfController = null;
 
-    final song = _items[index].song!;
+    final item = _items[index];
+    final song = item.song!;
     final initialPage = fromEnd && song.totalPages > 0
         ? song.totalPages
-        : (song.lastPage > 0 ? song.lastPage : 1);
+        : item.customStartPage > 0
+            ? item.customStartPage
+            : (song.lastPage > 0 ? song.lastPage : 1);
 
     final controller = PdfController(
       document: PdfDocument.openFile(song.filePath),

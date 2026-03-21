@@ -86,6 +86,16 @@ class SetlistRepository {
     await db.insert('setlist_items', item.toMap());
   }
 
+  Future<void> updateItem(SetlistItem item) async {
+    final db = await _db;
+    await db.update(
+      'setlist_items',
+      {'custom_start_page': item.customStartPage},
+      where: 'id = ?',
+      whereArgs: [item.id],
+    );
+  }
+
   Future<void> removeItem(int itemId) async {
     final db = await _db;
     await db.delete('setlist_items', where: 'id = ?', whereArgs: [itemId]);
