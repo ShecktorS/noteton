@@ -246,82 +246,118 @@ class _SetlistDetailScreenState extends ConsumerState<SetlistDetailScreen> {
     }
 
     final selected = <int>{};
+    final searchCtrl = TextEditingController();
 
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) => DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.6,
-          maxChildSize: 0.9,
-          builder: (_, scrollCtrl) => Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: Row(
-                  children: [
-                    Text(
-                      selected.isEmpty
-                          ? 'Aggiungi spartiti'
-                          : '${selected.length} selezionat${selected.length == 1 ? 'o' : 'i'}',
-                      style: Theme.of(ctx).textTheme.titleMedium,
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(ctx),
-                    ),
-                  ],
+        builder: (ctx, setSheetState) {
+          final q = searchCtrl.text.trim().toLowerCase();
+          final filtered = q.isEmpty
+              ? available
+              : available.where((s) =>
+                  s.title.toLowerCase().contains(q) ||
+                  (s.composerName?.toLowerCase().contains(q) ?? false)).toList();
+
+          return DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: 0.6,
+            maxChildSize: 0.9,
+            builder: (_, scrollCtrl) => Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Row(
+                    children: [
+                      Text(
+                        selected.isEmpty
+                            ? 'Aggiungi spartiti'
+                            : '${selected.length} selezionat${selected.length == 1 ? 'o' : 'i'}',
+                        style: Theme.of(ctx).textTheme.titleMedium,
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const Divider(height: 1),
-              Expanded(
-                child: ListView.builder(
-                  controller: scrollCtrl,
-                  itemCount: available.length,
-                  itemBuilder: (ctx, i) {
-                    final song = available[i];
-                    final isSelected = selected.contains(song.id);
-                    return CheckboxListTile(
-                      value: isSelected,
-                      onChanged: (_) => setSheetState(() {
-                        if (isSelected) {
-                          selected.remove(song.id);
-                        } else {
-                          selected.add(song.id!);
-                        }
-                      }),
-                      title: Text(song.title,
-                          maxLines: 1, overflow: TextOverflow.ellipsis),
-                      subtitle: song.composerName != null
-                          ? Text(song.composerName!)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: TextField(
+                    controller: searchCtrl,
+                    autofocus: false,
+                    onChanged: (_) => setSheetState(() {}),
+                    decoration: InputDecoration(
+                      hintText: 'Cerca brano...',
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      isDense: true,
+                      suffixIcon: searchCtrl.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.close, size: 18),
+                              onPressed: () {
+                                searchCtrl.clear();
+                                setSheetState(() {});
+                              },
+                            )
                           : null,
-                      controlAffinity: ListTileControlAffinity.leading,
-                    );
-                  },
+                    ),
+                  ),
                 ),
-              ),
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                    16, 8, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
-                child: FilledButton.icon(
-                  onPressed: selected.isEmpty
-                      ? null
-                      : () => Navigator.pop(ctx),
-                  icon: const Icon(Icons.add),
-                  label: Text(selected.isEmpty
-                      ? 'Seleziona brani'
-                      : 'Aggiungi ${selected.length} bran${selected.length == 1 ? 'o' : 'i'}'),
-                  style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(48)),
+                const Divider(height: 1),
+                Expanded(
+                  child: filtered.isEmpty
+                      ? const Center(
+                          child: Text('Nessun risultato',
+                              style: TextStyle(color: Colors.grey)))
+                      : ListView.builder(
+                          controller: scrollCtrl,
+                          itemCount: filtered.length,
+                          itemBuilder: (ctx, i) {
+                            final song = filtered[i];
+                            final isSelected = selected.contains(song.id);
+                            return CheckboxListTile(
+                              value: isSelected,
+                              onChanged: (_) => setSheetState(() {
+                                if (isSelected) {
+                                  selected.remove(song.id);
+                                } else {
+                                  selected.add(song.id!);
+                                }
+                              }),
+                              title: Text(song.title,
+                                  maxLines: 1, overflow: TextOverflow.ellipsis),
+                              subtitle: song.composerName != null
+                                  ? Text(song.composerName!)
+                                  : null,
+                              controlAffinity: ListTileControlAffinity.leading,
+                              dense: true,
+                            );
+                          },
+                        ),
                 ),
-              ),
-            ],
-          ),
-        ),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                      16, 8, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
+                  child: FilledButton.icon(
+                    onPressed: selected.isEmpty ? null : () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.add),
+                    label: Text(selected.isEmpty
+                        ? 'Seleziona brani'
+                        : 'Aggiungi ${selected.length} bran${selected.length == 1 ? 'o' : 'i'}'),
+                    style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48)),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
+    searchCtrl.dispose();
 
     if (selected.isEmpty) return;
     final repo = ref.read(setlistRepositoryProvider);
