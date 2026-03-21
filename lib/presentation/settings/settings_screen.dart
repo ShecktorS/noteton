@@ -1,23 +1,43 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/providers.dart';
 import '../common/app_bottom_nav.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Impostazioni')),
       body: ListView(
         children: [
           const _SectionHeader('Aspetto'),
-          ListTile(
-            leading: const Icon(Icons.dark_mode),
-            title: const Text('Tema'),
-            subtitle: const Text('Chiaro / Scuro / Sistema'),
-            onTap: () {
-              // TODO: implement theme switcher
-            },
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: SegmentedButton<ThemeMode>(
+              segments: const [
+                ButtonSegment(
+                  value: ThemeMode.light,
+                  icon: Icon(Icons.light_mode_outlined),
+                  label: Text('Chiaro'),
+                ),
+                ButtonSegment(
+                  value: ThemeMode.system,
+                  icon: Icon(Icons.brightness_auto_outlined),
+                  label: Text('Sistema'),
+                ),
+                ButtonSegment(
+                  value: ThemeMode.dark,
+                  icon: Icon(Icons.dark_mode_outlined),
+                  label: Text('Scuro'),
+                ),
+              ],
+              selected: {themeMode},
+              onSelectionChanged: (selection) =>
+                  ref.read(themeModeProvider.notifier).setMode(selection.first),
+            ),
           ),
           const Divider(),
           const _SectionHeader('Bluetooth'),
