@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../providers/providers.dart';
 import '../common/app_bottom_nav.dart';
 
@@ -15,9 +18,61 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isImporting = false;
 
   Future<void> _exportBackup() async {
+    if (!mounted) return;
+
+    // Ask the user how they want to save the backup
+    final choice = await showModalBottomSheet<_ExportChoice>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.save_alt),
+              title: const Text('Salva sul dispositivo'),
+              subtitle: const Text('Scegli dove salvare il file .ntb'),
+              onTap: () => Navigator.pop(ctx, _ExportChoice.save),
+            ),
+            ListTile(
+              leading: const Icon(Icons.share),
+              title: const Text('Condividi…'),
+              subtitle: const Text('Invia via email, Drive, WhatsApp…'),
+              onTap: () => Navigator.pop(ctx, _ExportChoice.share),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+
+    if (choice == null || !mounted) return;
+
     final backup = ref.read(backupRepositoryProvider);
     try {
-      await backup.exportBackup();
+      final tempPath = await backup.createBackupFile();
+      final fileName = tempPath.split('/').last;
+
+      if (choice == _ExportChoice.save) {
+        final destPath = await FilePicker.platform.saveFile(
+          dialogTitle: 'Salva backup Noteton',
+          fileName: fileName,
+          type: FileType.custom,
+          allowedExtensions: ['ntb'],
+        );
+        if (destPath == null) return; // user cancelled
+        await File(tempPath).copy(destPath);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Backup salvato sul dispositivo')),
+          );
+        }
+      } else {
+        await Share.shareXFiles(
+          [XFile(tempPath, mimeType: 'application/octet-stream')],
+          subject: 'Noteton Backup',
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -167,3 +222,5 @@ class _SectionHeader extends StatelessWidget {
     );
   }
 }
+
+enum _ExportChoice { save, share }

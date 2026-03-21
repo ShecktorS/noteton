@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:archive/archive_io.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../domain/models/collection.dart';
@@ -21,7 +20,9 @@ class BackupRepository {
   final _collectionRepo = CollectionRepository();
   final _uuid = const Uuid();
 
-  Future<void> exportBackup() async {
+  /// Creates the .ntb backup ZIP and returns its temp file path.
+  /// The caller decides what to do with it (save / share).
+  Future<String> createBackupFile() async {
     final appDocsDir = await getApplicationDocumentsDirectory();
     final tempDir = await getTemporaryDirectory();
 
@@ -114,8 +115,8 @@ class BackupRepository {
     final zipPath = '${tempDir.path}/noteton_backup_$timestamp.ntb';
     await File(zipPath).writeAsBytes(zipBytes);
 
-    // 8. Share
-    await Share.shareXFiles([XFile(zipPath)], subject: 'Noteton Backup');
+    // 8. Return path — caller handles save/share
+    return zipPath;
   }
 
   Future<String> importBackup(String ntbFilePath) async {
