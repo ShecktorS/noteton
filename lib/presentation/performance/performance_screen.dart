@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:pdfx/pdfx.dart';
 
 import '../../domain/models/setlist_item.dart';
+import '../../domain/models/drawing_stroke.dart';
 import '../../providers/providers.dart';
+import '../viewer/drawing_layer.dart';
 
 class PerformanceScreen extends ConsumerStatefulWidget {
   final int setlistId;
@@ -189,6 +191,8 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
     }
     if (_pdfController == null) return const SizedBox.shrink();
 
+    final song = _items[_currentSongIndex].song!;
+
     return Stack(
       children: [
         PdfView(
@@ -196,6 +200,14 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
           onPageChanged: _onPageChanged,
           scrollDirection: Axis.horizontal,
           pageSnapping: true,
+        ),
+
+        // Annotation overlay — read-only, no input capture
+        DrawingLayer(
+          songId: song.id!,
+          pageNumber: _currentPage,
+          isActive: false,
+          toolState: const DrawingToolState(),
         ),
 
         // Left edge — previous page / previous song

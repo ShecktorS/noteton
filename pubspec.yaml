@@ -35,6 +35,9 @@ dependencies:
   # Preferences
   shared_preferences: ^2.3.2
 
+  # Drawing / annotations
+  perfect_freehand: ^2.0.2
+
   # Utilities
   uuid: ^4.4.0
   intl: ^0.19.0
