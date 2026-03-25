@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -66,6 +68,17 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
       final initialPage = song.lastPage > 0 ? song.lastPage : 1;
       final doc = await PdfDocument.openFile(song.filePath);
       final actualTotalPages = doc.pagesCount;
+
+      // Persist totalPages immediately if it differs from the stored value.
+      // This fixes the case where import saved 0 (PDF not yet readable at
+      // copy time) — the library shows the correct count as soon as you
+      // navigate back, without needing a full app restart.
+      if (actualTotalPages > 0 && actualTotalPages != song.totalPages) {
+        unawaited(ref
+            .read(songRepositoryProvider)
+            .update(song.copyWith(totalPages: actualTotalPages)));
+        ref.invalidate(songsProvider);
+      }
 
       final controller = PdfController(
         document: Future.value(doc),
