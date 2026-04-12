@@ -835,11 +835,20 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf'],
+      allowMultiple: true,
     );
     if (result == null || result.files.isEmpty) return;
+    if (!context.mounted) return;
+
+    // ── Batch import (2+ files) ─────────────────────────────────────────────
+    if (result.files.length > 1) {
+      await _importBatch(context, result.files);
+      return;
+    }
+
+    // ── Single import (existing flow) ───────────────────────────────────────
     final picked = result.files.first;
     if (picked.path == null) return;
-    if (!context.mounted) return;
 
     final customize = await showDialog<bool>(
       context: context,
@@ -941,6 +950,70 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           SnackBar(content: Text('Errore importazione: $e')),
         );
       }
+    }
+  }
+
+  // ── Batch import ─────────────────────────────────────────────────────────────
+
+  Future<void> _importBatch(
+      BuildContext context, List<PlatformFile> files) async {
+    final total = files.length;
+    int done = 0;
+    int failed = 0;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Importazione di $total PDF in corso…')),
+    );
+
+    try {
+      final docsDir = await getApplicationDocumentsDirectory();
+      final pdfsDir = Directory(p.join(docsDir.path, 'pdfs'));
+      await pdfsDir.create(recursive: true);
+
+      for (final file in files) {
+        if (file.path == null) {
+          failed++;
+          continue;
+        }
+        try {
+          final destPath =
+              p.join(pdfsDir.path, '${const Uuid().v4()}.pdf');
+          await File(file.path!).copy(destPath);
+
+          int totalPages = 0;
+          try {
+            final doc = await PdfDocument.openFile(destPath);
+            totalPages = doc.pagesCount;
+            await doc.close();
+          } catch (_) {}
+
+          final title = p.basenameWithoutExtension(file.name);
+          final now = DateTime.now();
+          await ref.read(songRepositoryProvider).insert(Song(
+                title: title,
+                filePath: destPath,
+                totalPages: totalPages,
+                lastPage: 0,
+                createdAt: now,
+                updatedAt: now,
+              ));
+          done++;
+        } catch (_) {
+          failed++;
+        }
+      }
+    } catch (e) {
+      failed = total - done;
+    }
+
+    ref.invalidate(songsProvider);
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).clearSnackBars();
+      final msg = failed == 0
+          ? '$done PDF importati con successo'
+          : '$done importati, $failed falliti';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     }
   }
 
