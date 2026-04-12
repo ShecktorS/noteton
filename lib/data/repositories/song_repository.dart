@@ -9,7 +9,7 @@ import '../database/database_helper.dart';
 class SongRepository {
   Future<Database> get _db => DatabaseHelper.instance.database;
 
-  Future<List<Song>> getAll({String? searchQuery}) async {
+  Future<List<Song>> getAll({String? searchQuery, int? tagId}) async {
     final db = await _db;
 
     String sql = '''
@@ -18,10 +18,22 @@ class SongRepository {
       LEFT JOIN composers c ON s.composer_id = c.id
     ''';
     final args = <dynamic>[];
+    final conditions = <String>[];
 
     if (searchQuery != null && searchQuery.isNotEmpty) {
-      sql += ' WHERE s.title LIKE ? OR c.name LIKE ? OR s.key_signature LIKE ?';
+      conditions.add(
+          '(s.title LIKE ? OR c.name LIKE ? OR s.key_signature LIKE ?)');
       args.addAll(['%$searchQuery%', '%$searchQuery%', '%$searchQuery%']);
+    }
+
+    if (tagId != null) {
+      conditions.add(
+          's.id IN (SELECT song_id FROM song_tags WHERE tag_id = ?)');
+      args.add(tagId);
+    }
+
+    if (conditions.isNotEmpty) {
+      sql += ' WHERE ${conditions.join(' AND ')}';
     }
 
     sql += ' ORDER BY s.title ASC';

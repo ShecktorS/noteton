@@ -144,7 +144,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   Widget build(BuildContext context) {
     final query = ref.watch(searchQueryProvider);
     final sortOrder = ref.watch(sortOrderProvider);
-    final songsAsync = ref.watch(songsProvider(query.isEmpty ? null : query));
+    final tagFilter = ref.watch(tagFilterProvider);
+    final songsAsync = ref.watch(songsProvider((
+      query: query.isEmpty ? null : query,
+      tagId: tagFilter,
+    )));
 
     return Scaffold(
       appBar: _inSelectionMode
@@ -178,16 +182,17 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.filter_list),
-                      tooltip: 'Filtra per stato',
-                      onPressed: () => _showStatusFilterMenu(context),
+                      tooltip: 'Filtra',
+                      onPressed: () => _showFilterMenu(context),
                     ),
-                    if (_statusFilter != null)
+                    if (_statusFilter != null || ref.watch(tagFilterProvider) != null)
                       Positioned(
                         right: 6, top: 6,
                         child: Container(
                           width: 8, height: 8,
                           decoration: BoxDecoration(
-                            color: _statusFilter!.color,
+                            color: _statusFilter?.color ??
+                                Theme.of(context).colorScheme.primary,
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -498,6 +503,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             },
           ),
           ListTile(
+            leading: const Icon(Icons.local_offer_outlined),
+            title: const Text('Tag'),
+            onTap: () {
+              Navigator.pop(ctx);
+              _showTagPicker(context, song);
+            },
+          ),
+          ListTile(
             leading: const Icon(Icons.folder_special_outlined),
             title: const Text('Aggiungi a raccolta'),
             onTap: () {
@@ -578,6 +591,78 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   await repo.removeSong(id, song.id!);
                 }
                 ref.invalidate(collectionsProvider);
+              },
+              child: const Text('Salva'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Tag picker ───────────────────────────────────────────────────────────────
+
+  Future<void> _showTagPicker(BuildContext context, Song song) async {
+    final allTags = await ref.read(tagsProvider.future);
+    if (!context.mounted) return;
+
+    if (allTags.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Nessun tag disponibile. Creane uno nelle Impostazioni → Tag.'),
+        ),
+      );
+      return;
+    }
+
+    final currentTags = await ref.read(tagRepositoryProvider).getTagsForSong(song.id!);
+    if (!context.mounted) return;
+
+    final selectedIds = Set<int>.from(currentTags.map((t) => t.id!));
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Tag'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: allTags
+                  .map((tag) {
+                    final color = _parseTagColor(tag.color);
+                    return CheckboxListTile(
+                      secondary: Container(
+                        width: 14,
+                        height: 14,
+                        decoration: BoxDecoration(
+                            color: color, shape: BoxShape.circle),
+                      ),
+                      title: Text(tag.name),
+                      value: selectedIds.contains(tag.id),
+                      onChanged: (checked) => setDialogState(() {
+                        if (checked == true) {
+                          selectedIds.add(tag.id!);
+                        } else {
+                          selectedIds.remove(tag.id);
+                        }
+                      }),
+                    );
+                  })
+                  .toList(),
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Annulla')),
+            FilledButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                await ref.read(tagRepositoryProvider).setTagsForSong(
+                    song.id!, selectedIds.toList());
+                ref.invalidate(songTagsProvider(song.id!));
               },
               child: const Text('Salva'),
             ),
@@ -863,52 +948,130 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     showSearch(context: context, delegate: _SongSearchDelegate(ref));
   }
 
-  // ── Status filter menu ───────────────────────────────────────────────────────
+  // ── Filter menu (status + tag) ───────────────────────────────────────────────
 
-  void _showStatusFilterMenu(BuildContext context) async {
-    final result = await showModalBottomSheet<SongStatus?>(
+  void _showFilterMenu(BuildContext context) async {
+    final tags = await ref.read(tagsProvider.future);
+    if (!context.mounted) return;
+
+    final currentTagFilter = ref.read(tagFilterProvider);
+
+    await showModalBottomSheet(
       context: context,
-      builder: (ctx) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text('Filtra per stato',
-                style: Theme.of(ctx).textTheme.titleMedium),
-          ),
-          ListTile(
-            leading: const Icon(Icons.all_inclusive),
-            title: const Text('Tutti'),
-            trailing: _statusFilter == null
-                ? Icon(Icons.check, color: Theme.of(ctx).colorScheme.primary)
-                : null,
-            onTap: () => Navigator.pop(ctx, null),
-          ),
-          ...SongStatus.values.where((s) => s != SongStatus.none).map((status) =>
-            ListTile(
-              leading: Container(
-                width: 12, height: 12,
-                decoration: BoxDecoration(
-                  color: status.color, shape: BoxShape.circle),
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          SongStatus? localStatus = _statusFilter;
+          int? localTagId = currentTagFilter;
+          // Re-read on rebuild
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Status section ──────────────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                    child: Text('Stato',
+                        style: Theme.of(ctx).textTheme.labelLarge?.copyWith(
+                            color: Theme.of(ctx).colorScheme.primary)),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.all_inclusive),
+                    title: const Text('Tutti gli stati'),
+                    trailing: _statusFilter == null
+                        ? Icon(Icons.check,
+                            color: Theme.of(ctx).colorScheme.primary, size: 18)
+                        : null,
+                    onTap: () {
+                      setState(() => _statusFilter = null);
+                      Navigator.pop(ctx);
+                    },
+                  ),
+                  ...SongStatus.values
+                      .where((s) => s != SongStatus.none)
+                      .map((status) => ListTile(
+                            leading: Container(
+                              width: 12,
+                              height: 12,
+                              decoration: BoxDecoration(
+                                  color: status.color,
+                                  shape: BoxShape.circle),
+                            ),
+                            title: Text(status.label),
+                            trailing: _statusFilter == status
+                                ? Icon(Icons.check,
+                                    color: Theme.of(ctx).colorScheme.primary,
+                                    size: 18)
+                                : null,
+                            onTap: () {
+                              setState(() => _statusFilter = status);
+                              Navigator.pop(ctx);
+                            },
+                          )),
+
+                  if (tags.isNotEmpty) ...[
+                    const Divider(height: 1),
+                    // ── Tag section ─────────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                      child: Text('Tag',
+                          style: Theme.of(ctx).textTheme.labelLarge?.copyWith(
+                              color: Theme.of(ctx).colorScheme.primary)),
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.label_off_outlined),
+                      title: const Text('Tutti i tag'),
+                      trailing: currentTagFilter == null
+                          ? Icon(Icons.check,
+                              color: Theme.of(ctx).colorScheme.primary, size: 18)
+                          : null,
+                      onTap: () {
+                        ref.read(tagFilterProvider.notifier).state = null;
+                        Navigator.pop(ctx);
+                      },
+                    ),
+                    ...tags.map((tag) {
+                      final tagColor = _parseTagColor(tag.color);
+                      return ListTile(
+                        leading: Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                              color: tagColor, shape: BoxShape.circle),
+                        ),
+                        title: Text(tag.name),
+                        trailing: currentTagFilter == tag.id
+                            ? Icon(Icons.check,
+                                color: Theme.of(ctx).colorScheme.primary,
+                                size: 18)
+                            : null,
+                        onTap: () {
+                          ref.read(tagFilterProvider.notifier).state =
+                              tag.id;
+                          Navigator.pop(ctx);
+                        },
+                      );
+                    }),
+                  ],
+                  const SizedBox(height: 4),
+                ],
               ),
-              title: Text(status.label),
-              trailing: _statusFilter == status
-                  ? Icon(Icons.check, color: Theme.of(ctx).colorScheme.primary)
-                  : null,
-              onTap: () => Navigator.pop(ctx, status),
             ),
-          ),
-          const SizedBox(height: 8),
-        ],
+          );
+        },
       ),
     );
-    if (!context.mounted) return;
-    // result == null significa sia "Tutti" (pop con null esplicito) che chiusura senza selezione.
-    // Per distinguerli usiamo un flag: se il bottom sheet è stato chiuso senza tap,
-    // result è null ma non aggiorniamo (usiamo useRootNavigator: false).
-    // In pratica, per semplicità, null = "Tutti" (reset filtro).
-    setState(() => _statusFilter = result);
+  }
+
+  Color _parseTagColor(String hex) {
+    try {
+      return Color(int.parse(hex.replaceFirst('#', '0xFF')));
+    } catch (_) {
+      return Colors.grey;
+    }
   }
 
   // ── Status picker ────────────────────────────────────────────────────────────
@@ -1351,7 +1514,8 @@ class _SongSearchDelegate extends SearchDelegate<String> {
 
     return Consumer(
       builder: (context, ref, _) {
-        final songsAsync = ref.watch(songsProvider(query.trim()));
+        final songsAsync = ref.watch(
+            songsProvider((query: query.trim(), tagId: null)));
         return songsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('Errore: $e')),

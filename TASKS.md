@@ -5,7 +5,7 @@
 - [x] **Backup annotations** — `BackupRepository` ora include la tabella `annotations` nell'export/import. Versione backup: 2.
 - [x] **Ricerca globale** — `_SongSearchDelegate` con risultati live (titolo / compositore / tonalità), toccando il brano si apre direttamente il viewer.
 - [x] **Metronomo integrato** — barra con play/stop, ±5 BPM, tap-tempo, indicatore visivo pulsante. BPM caricato dal brano. Presente in viewer e performance mode.
-- [ ] **Tag personalizzati (UI)** — la tabella `tags` e `song_tags` esiste già nel DB ma non è mai esposta nell'UI. Aggiungi creazione, assegnazione e filtro per tag.
+- [x] **Tag personalizzati (UI)** — creazione (con palette colori) e gestione in Impostazioni → Tag; assegnazione ai brani dal menu opzioni; filtro in libreria (icona filtro, sezione Tag).
 
 ## Media priorità
 
