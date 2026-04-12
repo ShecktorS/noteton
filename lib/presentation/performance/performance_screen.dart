@@ -119,8 +119,8 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
     if (_currentPage < _totalPages) {
       _pdfController?.nextPage(
           duration: const Duration(milliseconds: 200), curve: Curves.easeInOut);
-    } else if (_currentSongIndex < _items.length - 1) {
-      _loadSong(_currentSongIndex + 1);
+    } else {
+      _nextSong();
     }
   }
 
@@ -129,7 +129,21 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
     if (_currentPage > 1) {
       _pdfController?.previousPage(
           duration: const Duration(milliseconds: 200), curve: Curves.easeInOut);
-    } else if (_currentSongIndex > 0) {
+    } else {
+      _prevSong();
+    }
+  }
+
+  void _nextSong() {
+    if (_currentSongIndex < _items.length - 1) {
+      HapticFeedback.mediumImpact();
+      _loadSong(_currentSongIndex + 1);
+    }
+  }
+
+  void _prevSong() {
+    if (_currentSongIndex > 0) {
+      HapticFeedback.mediumImpact();
       _loadSong(_currentSongIndex - 1, fromEnd: true);
     }
   }
@@ -338,26 +352,38 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
             child: _buildMetronomeBar(context),
           ),
 
-        // Song transition indicator
+        // Song indicator + swipe zone to change song
         if (_items.length > 1)
           Positioned(
-            bottom: 12,
+            bottom: 0,
             left: 0,
             right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                _items.length,
-                (i) => AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  width: i == _currentSongIndex ? 20 : 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(3),
-                    color: i == _currentSongIndex
-                        ? Colors.white
-                        : Colors.white38,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onHorizontalDragEnd: (details) {
+                final v = details.primaryVelocity ?? 0;
+                if (v < -300) _nextSong();   // swipe left → next song
+                if (v > 300) _prevSong();    // swipe right → prev song
+              },
+              child: Container(
+                height: 44,
+                alignment: Alignment.center,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(
+                    _items.length,
+                    (i) => AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      width: i == _currentSongIndex ? 20 : 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(3),
+                        color: i == _currentSongIndex
+                            ? Colors.white
+                            : Colors.white38,
+                      ),
+                    ),
                   ),
                 ),
               ),

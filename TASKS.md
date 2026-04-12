@@ -9,10 +9,10 @@
 
 ## Media priorità
 
-- [ ] **Performance mode: swipe per cambiare brano** — swipe orizzontale oltre ai bottoni.
-- [ ] **Drag & drop nella setlist** — riordinare i brani trascinandoli.
-- [ ] **Import batch** — importare più PDF in una volta sola (già supportato da file_picker).
-- [ ] **Schermata compositore più ricca** — mostrare anno di nascita/morte (già in DB), eventuale nota biografica.
+- [x] **Performance mode: swipe per cambiare brano** — swipe orizzontale sulla barra dot in basso cambia brano. Haptic feedback differenziato.
+- [x] **Drag & drop nella setlist** — già implementato con `ReorderableListView` + handle. Confermato funzionante.
+- [x] **Import batch** — selezione multipla di PDF con un unico gesto, importati in sequenza.
+- [x] **Schermata compositore più ricca** — header con avatar, anni di vita, contatore brani. Tasto edit per modificare nome + anni.
 
 ## Bassa priorità / Futuro
 
