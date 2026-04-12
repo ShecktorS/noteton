@@ -53,4 +53,31 @@ class AnnotationRepository {
     final db = await _db;
     await db.delete('annotations', where: 'song_id = ?', whereArgs: [songId]);
   }
+
+  /// Returns all annotation rows as raw maps {song_id, page_number, annotation_data}.
+  /// Used by backup export.
+  Future<List<Map<String, dynamic>>> getAllRaw() async {
+    final db = await _db;
+    return db.query(
+      'annotations',
+      columns: ['song_id', 'page_number', 'annotation_data'],
+    );
+  }
+
+  /// Inserts a raw annotation row. Used by backup import to avoid double JSON parsing.
+  Future<void> saveRaw(
+      int songId, int pageNumber, String annotationData) async {
+    final db = await _db;
+    await db.delete(
+      'annotations',
+      where: 'song_id = ? AND page_number = ?',
+      whereArgs: [songId, pageNumber],
+    );
+    await db.insert('annotations', {
+      'song_id': songId,
+      'page_number': pageNumber,
+      'annotation_data': annotationData,
+      'created_at': DateTime.now().toIso8601String(),
+    });
+  }
 }

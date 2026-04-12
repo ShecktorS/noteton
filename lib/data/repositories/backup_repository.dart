@@ -10,6 +10,7 @@ import '../../domain/models/collection.dart';
 import '../../domain/models/setlist.dart';
 import '../../domain/models/setlist_item.dart';
 import '../../domain/models/song.dart';
+import 'annotation_repository.dart';
 import 'collection_repository.dart';
 import 'setlist_repository.dart';
 import 'song_repository.dart';
@@ -18,6 +19,7 @@ class BackupRepository {
   final _songRepo = SongRepository();
   final _setlistRepo = SetlistRepository();
   final _collectionRepo = CollectionRepository();
+  final _annotationRepo = AnnotationRepository();
   final _uuid = const Uuid();
 
   /// Creates the .ntb backup ZIP and returns its temp file path.
@@ -63,7 +65,17 @@ class BackupRepository {
       });
     }
 
-    // 4. Build songs JSON
+    // 4. Fetch all annotations
+    final annotationRows = await _annotationRepo.getAllRaw();
+    final annotationsJson = annotationRows
+        .map((row) => {
+              'songId': row['song_id'] as int,
+              'page': row['page_number'] as int,
+              'data': row['annotation_data'] as String,
+            })
+        .toList();
+
+    // 5. Build songs JSON
     final songsJson = songs
         .map((s) => {
               'id': s.id,
@@ -78,16 +90,17 @@ class BackupRepository {
             })
         .toList();
 
-    // 5. Assemble final JSON
+    // 6. Assemble final JSON
     final backupJson = {
-      'version': 1,
+      'version': 2,
       'exportedAt': DateTime.now().toIso8601String(),
       'songs': songsJson,
       'setlists': setlistsJson,
       'collections': collectionsJson,
+      'annotations': annotationsJson,
     };
 
-    // 6. Create ZIP archive in memory
+    // 7. Create ZIP archive in memory
     final archive = Archive();
 
     // Add backup.json
@@ -106,7 +119,7 @@ class BackupRepository {
       }
     }
 
-    // 7. Encode and write ZIP to temp file
+    // 8. Encode and write ZIP to temp file
     final zipEncoder = ZipEncoder();
     final zipBytes = zipEncoder.encode(archive);
     if (zipBytes == null) throw Exception('Errore nella creazione del backup');
@@ -115,7 +128,7 @@ class BackupRepository {
     final zipPath = '${tempDir.path}/noteton_backup_$timestamp.ntb';
     await File(zipPath).writeAsBytes(zipBytes);
 
-    // 8. Return path — caller handles save/share
+    // 9. Return path — caller handles save/share
     return zipPath;
   }
 
@@ -229,6 +242,21 @@ class BackupRepository {
       }
     }
 
-    return 'Importati ${songsData.length} brani, ${setlistsData.length} setlist, ${collectionsData.length} raccolte';
+    // 6. Import annotations (v2+ backups only)
+    final annotationsData = backupData['annotations'] as List? ?? [];
+    int annotationsImported = 0;
+    for (final annData in annotationsData.cast<Map<String, dynamic>>()) {
+      final oldSongId = annData['songId'] as int;
+      final newSongId = oldIdToNewId[oldSongId];
+      if (newSongId == null) continue;
+      final page = annData['page'] as int;
+      final data = annData['data'] as String;
+      await _annotationRepo.saveRaw(newSongId, page, data);
+      annotationsImported++;
+    }
+
+    final annotationsNote =
+        annotationsImported > 0 ? ', $annotationsImported annotazioni' : '';
+    return 'Importati ${songsData.length} brani, ${setlistsData.length} setlist, ${collectionsData.length} raccolte$annotationsNote';
   }
 }

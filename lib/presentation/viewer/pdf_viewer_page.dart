@@ -10,6 +10,7 @@ import '../../domain/models/song.dart';
 import '../../domain/models/drawing_stroke.dart';
 import '../../providers/providers.dart';
 import 'drawing_layer.dart';
+import 'metronome_controller.dart';
 
 class PdfViewerPage extends ConsumerStatefulWidget {
   final int songId;
@@ -35,6 +36,11 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
   DrawingToolState _toolState = const DrawingToolState();
   final GlobalKey<DrawingLayerState> _drawingLayerKey = GlobalKey();
 
+  // ── Metronome state ───────────────────────────────────────────────────────
+  late final MetronomeController _metronome;
+  bool _metronomeVisible = false;
+  bool _metronomeBeat = false; // pulses true/false on each beat
+
   static const _colorPresets = [
     Colors.black,
     Color(0xFFE53935), // rosso
@@ -47,6 +53,13 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
   @override
   void initState() {
     super.initState();
+    _metronome = MetronomeController()
+      ..onBeat = () {
+        if (mounted) setState(() => _metronomeBeat = !_metronomeBeat);
+      }
+      ..onStateChanged = () {
+        if (mounted) setState(() {});
+      };
     _initPdf();
   }
 
@@ -65,6 +78,9 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
       }
 
       _songCache = song;
+      if (song.bpm != null && song.bpm! > 0) {
+        _metronome.setBpm(song.bpm!);
+      }
       final initialPage = song.lastPage > 0 ? song.lastPage : 1;
       final doc = await PdfDocument.openFile(song.filePath);
       final actualTotalPages = doc.pagesCount;
@@ -120,6 +136,7 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
 
   @override
   void dispose() {
+    _metronome.dispose();
     if (_standMode) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     }
@@ -204,6 +221,39 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
               foregroundColor: Colors.white,
               elevation: 0,
               actions: [
+                // Metronome toggle
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        Icons.music_note,
+                        color: _metronomeVisible
+                            ? (_metronome.isRunning && _metronomeBeat
+                                ? accent
+                                : accent.withValues(alpha: 0.7))
+                            : Colors.white70,
+                      ),
+                      tooltip: 'Metronomo',
+                      onPressed: () => setState(
+                          () => _metronomeVisible = !_metronomeVisible),
+                    ),
+                    if (_metronome.isRunning)
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 80),
+                          width: _metronomeBeat ? 8 : 6,
+                          height: _metronomeBeat ? 8 : 6,
+                          decoration: BoxDecoration(
+                            color: _metronomeBeat ? accent : Colors.white54,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
                 // Annotation toggle
                 IconButton(
                   icon: Icon(
@@ -315,6 +365,15 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
             right: 0,
             child: _buildAnnotationToolbar(),
           ),
+
+        // 5 — Metronome bar (visible when toggled + appbar visible)
+        if (_metronomeVisible && _appBarVisible && !_drawingMode)
+          Positioned(
+            bottom: 20,
+            left: 0,
+            right: 0,
+            child: _buildMetronomeBar(),
+          ),
       ],
     );
   }
@@ -405,6 +464,112 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
           border: selected
               ? Border.all(color: Colors.white, width: 2)
               : Border.all(color: Colors.white24, width: 1),
+        ),
+      ),
+    );
+  }
+
+  // ── Metronome bar ─────────────────────────────────────────────────────────
+
+  Widget _buildMetronomeBar() {
+    final accent = Theme.of(context).colorScheme.primary;
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.80),
+          borderRadius: BorderRadius.circular(32),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.4),
+                blurRadius: 12,
+                offset: const Offset(0, 4))
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Play/stop
+            GestureDetector(
+              onTap: () => setState(() => _metronome.toggle()),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Icon(
+                  _metronome.isRunning ? Icons.pause : Icons.play_arrow,
+                  size: 26,
+                  color: _metronome.isRunning ? accent : Colors.white70,
+                ),
+              ),
+            ),
+
+            const SizedBox(width: 8),
+
+            // BPM - button
+            GestureDetector(
+              onTap: () => setState(() => _metronome.adjustBpm(-5)),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4),
+                child: Icon(Icons.remove, size: 20, color: Colors.white70),
+              ),
+            ),
+
+            // BPM display + tap tempo
+            GestureDetector(
+              onTap: () => setState(() => _metronome.tapTempo()),
+              child: Container(
+                width: 62,
+                alignment: Alignment.center,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${_metronome.bpm}',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: _metronome.isRunning && _metronomeBeat
+                            ? accent
+                            : Colors.white,
+                      ),
+                    ),
+                    Text(
+                      'BPM',
+                      style: TextStyle(
+                          fontSize: 9, color: Colors.white.withValues(alpha: 0.5)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // BPM + button
+            GestureDetector(
+              onTap: () => setState(() => _metronome.adjustBpm(5)),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4),
+                child: Icon(Icons.add, size: 20, color: Colors.white70),
+              ),
+            ),
+
+            const _ToolbarDivider(),
+
+            // Tap tempo label
+            GestureDetector(
+              onTap: () => setState(() => _metronome.tapTempo()),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Text(
+                  'TAP',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white.withValues(alpha: 0.7),
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

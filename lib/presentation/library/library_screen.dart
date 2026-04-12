@@ -76,7 +76,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   void _exitSelectionMode() => setState(() => _selectedIds.clear());
 
-  @override
   List<Song> _applySortOrder(List<Song> songs, SortOrder order) {
     final list = List<Song>.from(songs);
     switch (order) {
@@ -1315,8 +1314,12 @@ class _SongSearchDelegate extends SearchDelegate<String> {
   _SongSearchDelegate(this.ref);
 
   @override
+  String get searchFieldLabel => 'Cerca per titolo, compositore, tonalità…';
+
+  @override
   List<Widget> buildActions(BuildContext context) => [
-        IconButton(icon: const Icon(Icons.clear), onPressed: () => query = ''),
+        if (query.isNotEmpty)
+          IconButton(icon: const Icon(Icons.clear), onPressed: () => query = ''),
       ];
 
   @override
@@ -1325,13 +1328,91 @@ class _SongSearchDelegate extends SearchDelegate<String> {
       onPressed: () => close(context, ''));
 
   @override
-  Widget buildResults(BuildContext context) {
-    ref.read(searchQueryProvider.notifier).state = query;
-    return const SizedBox.shrink();
-  }
+  Widget buildResults(BuildContext context) => _buildResultsWidget(context);
 
   @override
-  Widget buildSuggestions(BuildContext context) => const SizedBox.shrink();
+  Widget buildSuggestions(BuildContext context) => _buildResultsWidget(context);
+
+  Widget _buildResultsWidget(BuildContext context) {
+    if (query.trim().isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.search,
+                size: 64,
+                color: Theme.of(context).colorScheme.outline),
+            const SizedBox(height: 12),
+            const Text('Digita per cercare'),
+          ],
+        ),
+      );
+    }
+
+    return Consumer(
+      builder: (context, ref, _) {
+        final songsAsync = ref.watch(songsProvider(query.trim()));
+        return songsAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('Errore: $e')),
+          data: (songs) {
+            if (songs.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.music_off,
+                        size: 64,
+                        color: Theme.of(context).colorScheme.outline),
+                    const SizedBox(height: 12),
+                    Text('Nessun risultato per "$query"'),
+                  ],
+                ),
+              );
+            }
+            return ListView.builder(
+              itemCount: songs.length,
+              itemBuilder: (context, i) {
+                final song = songs[i];
+                return ListTile(
+                  leading: SizedBox(
+                    width: 40,
+                    height: 56,
+                    child: PdfThumbnail(
+                      key: ValueKey(song.filePath),
+                      filePath: song.filePath,
+                    ),
+                  ),
+                  title: Text(
+                    song.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
+                    [
+                      if (song.composerName != null) song.composerName!,
+                      if (song.keySignature != null) song.keySignature!,
+                    ].join(' · '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withOpacity(0.6)),
+                  ),
+                  onTap: () {
+                    close(context, '');
+                    context.push('${AppConstants.routeViewer}/${song.id}');
+                  },
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
 }
 
 // ── A-Z Scroll Bar ────────────────────────────────────────────────────────────

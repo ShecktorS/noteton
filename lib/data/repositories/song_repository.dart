@@ -20,8 +20,8 @@ class SongRepository {
     final args = <dynamic>[];
 
     if (searchQuery != null && searchQuery.isNotEmpty) {
-      sql += ' WHERE s.title LIKE ? OR c.name LIKE ?';
-      args.addAll(['%$searchQuery%', '%$searchQuery%']);
+      sql += ' WHERE s.title LIKE ? OR c.name LIKE ? OR s.key_signature LIKE ?';
+      args.addAll(['%$searchQuery%', '%$searchQuery%', '%$searchQuery%']);
     }
 
     sql += ' ORDER BY s.title ASC';
