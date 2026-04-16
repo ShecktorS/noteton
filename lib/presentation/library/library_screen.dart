@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
@@ -12,6 +14,7 @@ import 'package:pdfx/pdfx.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/key_signature_localization.dart';
 import '../../domain/models/collection.dart';
 import '../../domain/models/setlist.dart';
 import '../../domain/models/setlist_item.dart';
@@ -150,7 +153,12 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       tagId: tagFilter,
     )));
 
-    return Scaffold(
+    return PopScope(
+      canPop: !_inSelectionMode,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _exitSelectionMode();
+      },
+      child: Scaffold(
       appBar: _inSelectionMode
           ? AppBar(
               leading: IconButton(
@@ -159,6 +167,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               ),
               title: Text('${_selectedIds.length} selezionat${_selectedIds.length == 1 ? 'o' : 'i'}'),
               actions: [
+                IconButton(
+                  icon: const Icon(Icons.local_offer_outlined),
+                  tooltip: 'Assegna tag',
+                  onPressed: () => _showBulkTagPicker(context),
+                ),
                 IconButton(
                   icon: const Icon(Icons.delete_outline),
                   tooltip: 'Elimina selezionati',
@@ -275,7 +288,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               ],
             ),
       bottomNavigationBar: const AppBottomNav(currentIndex: 0),
-    );
+    ), // Scaffold
+    ); // PopScope
   }
 
   // ── Alpha scroll ────────────────────────────────────────────────────────────
@@ -406,7 +420,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     _MetaBadge(label: song.status.label, color: song.status.color),
                   if (song.keySignature != null)
                     _MetaBadge(
-                      label: song.keySignature!,
+                      label: KeySignatureLocalization.display(
+                          song.keySignature!,
+                          Localizations.localeOf(context)),
                       color: Theme.of(context).colorScheme.tertiary,
                     ),
                   if (song.bpm != null)
@@ -607,50 +623,108 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     if (!context.mounted) return;
 
     if (allTags.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-              'Nessun tag disponibile. Creane uno nelle Impostazioni → Tag.'),
+      await showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Nessun tag'),
+          content: const Text(
+              'Non hai ancora creato nessun tag.\nVai in Impostazioni → Tag per crearne uno.'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('OK')),
+          ],
         ),
       );
       return;
     }
 
-    final currentTags = await ref.read(tagRepositoryProvider).getTagsForSong(song.id!);
+    final currentTags =
+        await ref.read(tagRepositoryProvider).getTagsForSong(song.id!);
     if (!context.mounted) return;
 
     final selectedIds = Set<int>.from(currentTags.map((t) => t.id!));
+    await _tagPickerDialog(context, allTags, selectedIds,
+        onSave: (ids) async {
+      await ref.read(tagRepositoryProvider).setTagsForSong(song.id!, ids);
+      ref.invalidate(songTagsProvider(song.id!));
+    });
+  }
+
+  /// Tag picker per selezione massiva (più brani selezionati).
+  Future<void> _showBulkTagPicker(BuildContext context) async {
+    final allTags = await ref.read(tagsProvider.future);
+    if (!context.mounted) return;
+
+    if (allTags.isEmpty) {
+      await showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Nessun tag'),
+          content: const Text(
+              'Non hai ancora creato nessun tag.\nVai in Impostazioni → Tag per crearne uno.'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+          ],
+        ),
+      );
+      return;
+    }
+
+    final selectedIds = <int>{};
+    await _tagPickerDialog(context, allTags, selectedIds,
+        title: 'Assegna tag ai ${_selectedIds.length} brani selezionati',
+        onSave: (ids) async {
+      final repo = ref.read(tagRepositoryProvider);
+      for (final songId in _selectedIds) {
+        // Merge: aggiungo i tag selezionati senza rimuovere quelli esistenti
+        final existing = await repo.getTagsForSong(songId);
+        final merged = {...existing.map((t) => t.id!), ...ids}.toList();
+        await repo.setTagsForSong(songId, merged);
+      }
+      _exitSelectionMode();
+    });
+  }
+
+  /// Dialogo generico per selezionare tag da una lista.
+  Future<void> _tagPickerDialog(
+    BuildContext context,
+    List<dynamic> allTags,
+    Set<int> initialIds, {
+    String title = 'Tag',
+    required Future<void> Function(List<int>) onSave,
+  }) async {
+    final selectedIds = Set<int>.from(initialIds);
 
     await showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Tag'),
+          title: Text(title),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: allTags
-                  .map((tag) {
-                    final color = _parseTagColor(tag.color);
-                    return CheckboxListTile(
-                      secondary: Container(
-                        width: 14,
-                        height: 14,
-                        decoration: BoxDecoration(
-                            color: color, shape: BoxShape.circle),
-                      ),
-                      title: Text(tag.name),
-                      value: selectedIds.contains(tag.id),
-                      onChanged: (checked) => setDialogState(() {
-                        if (checked == true) {
-                          selectedIds.add(tag.id!);
-                        } else {
-                          selectedIds.remove(tag.id);
-                        }
-                      }),
-                    );
-                  })
-                  .toList(),
+              children: allTags.map((tag) {
+                final color = _parseTagColor(tag.color as String);
+                return CheckboxListTile(
+                  secondary: Container(
+                    width: 14,
+                    height: 14,
+                    decoration:
+                        BoxDecoration(color: color, shape: BoxShape.circle),
+                  ),
+                  title: Text(tag.name as String),
+                  value: selectedIds.contains(tag.id as int?),
+                  onChanged: (checked) => setDialogState(() {
+                    if (checked == true) {
+                      selectedIds.add(tag.id as int);
+                    } else {
+                      selectedIds.remove(tag.id as int?);
+                    }
+                  }),
+                );
+              }).toList(),
             ),
           ),
           actions: [
@@ -660,9 +734,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             FilledButton(
               onPressed: () async {
                 Navigator.pop(ctx);
-                await ref.read(tagRepositoryProvider).setTagsForSong(
-                    song.id!, selectedIds.toList());
-                ref.invalidate(songTagsProvider(song.id!));
+                await onSave(selectedIds.toList());
               },
               child: const Text('Salva'),
             ),
@@ -716,17 +788,25 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     textCapitalization: TextCapitalization.words,
                   ),
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    value: selectedKey,
-                    decoration: const InputDecoration(labelText: 'Tonalità'),
-                    isExpanded: true,
-                    items: [
-                      const DropdownMenuItem(value: null, child: Text('—')),
-                      ..._keySignatures.map((k) =>
-                          DropdownMenuItem(value: k, child: Text(k))),
-                    ],
-                    onChanged: (v) => setDialogState(() => selectedKey = v),
-                  ),
+                  Builder(builder: (ctx) {
+                    final locale = Localizations.localeOf(ctx);
+                    final keyItems = KeySignatureLocalization.items(locale);
+                    return DropdownButtonFormField<String>(
+                      value: selectedKey,
+                      decoration: const InputDecoration(labelText: 'Tonalità'),
+                      isExpanded: true,
+                      items: [
+                        const DropdownMenuItem(
+                            value: null,
+                            child: Text('Nessuna',
+                                style: TextStyle(color: Colors.grey))),
+                        ...keyItems.map((item) => DropdownMenuItem(
+                            value: item.stored, child: Text(item.label))),
+                      ],
+                      onChanged: (v) =>
+                          setDialogState(() => selectedKey = v),
+                    );
+                  }),
                   const SizedBox(height: 12),
                   TextField(
                     controller: bpmCtrl,
@@ -739,11 +819,15 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     decoration: const InputDecoration(labelText: 'Strumento'),
                     isExpanded: true,
                     items: [
-                      const DropdownMenuItem(value: null, child: Text('—')),
+                      const DropdownMenuItem(
+                          value: null,
+                          child: Text('Nessuno',
+                              style: TextStyle(color: Colors.grey))),
                       ..._instruments.map((s) =>
                           DropdownMenuItem(value: s, child: Text(s))),
                     ],
-                    onChanged: (v) => setDialogState(() => selectedInstrument = v),
+                    onChanged: (v) =>
+                        setDialogState(() => selectedInstrument = v),
                   ),
                 ],
               ),
@@ -827,7 +911,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text(
-                'Importazione PDF non disponibile su web — usa la app mobile')),
+                'Importazione PDF non disponibile su web. Usa la app mobile.')),
       );
       return;
     }
@@ -883,6 +967,32 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         .showSnackBar(const SnackBar(content: Text('Importazione in corso…')));
 
     try {
+      // ── Hash check for duplicates ───────────────────────────────────────
+      final fileHash = await _computeHash(picked.path!);
+      if (context.mounted && fileHash != null) {
+        final existing =
+            await ref.read(songRepositoryProvider).getByHash(fileHash);
+        if (existing != null && context.mounted) {
+          final proceed = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('File già presente'),
+              content: Text(
+                  'Questo PDF è già in libreria come:\n"${existing.title}"\n\nImportarlo comunque?'),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Annulla')),
+                FilledButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('Importa comunque')),
+              ],
+            ),
+          );
+          if (proceed != true || !context.mounted) return;
+        }
+      }
+
       final docsDir = await getApplicationDocumentsDirectory();
       final pdfsDir = Directory(p.join(docsDir.path, 'pdfs'));
       await pdfsDir.create(recursive: true);
@@ -913,6 +1023,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             filePath: destPath,
             totalPages: totalPages,
             lastPage: 0,
+            fileHash: fileHash,
             createdAt: now,
             updatedAt: now,
           ));
@@ -960,6 +1071,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final total = files.length;
     int done = 0;
     int failed = 0;
+    int skipped = 0;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Importazione di $total PDF in corso…')),
@@ -976,6 +1088,17 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           continue;
         }
         try {
+          // Hash check — skip silent duplicates in batch mode
+          final fileHash = await _computeHash(file.path!);
+          if (fileHash != null) {
+            final existing =
+                await ref.read(songRepositoryProvider).getByHash(fileHash);
+            if (existing != null) {
+              skipped++;
+              continue;
+            }
+          }
+
           final destPath =
               p.join(pdfsDir.path, '${const Uuid().v4()}.pdf');
           await File(file.path!).copy(destPath);
@@ -994,6 +1117,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 filePath: destPath,
                 totalPages: totalPages,
                 lastPage: 0,
+                fileHash: fileHash,
                 createdAt: now,
                 updatedAt: now,
               ));
@@ -1003,17 +1127,30 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         }
       }
     } catch (e) {
-      failed = total - done;
+      failed = total - done - skipped;
     }
 
     ref.invalidate(songsProvider);
 
     if (context.mounted) {
       ScaffoldMessenger.of(context).clearSnackBars();
-      final msg = failed == 0
-          ? '$done PDF importati con successo'
-          : '$done importati, $failed falliti';
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      final parts = <String>[];
+      if (done > 0) parts.add('$done importati');
+      if (skipped > 0) parts.add('$skipped già presenti');
+      if (failed > 0) parts.add('$failed falliti');
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(parts.join(', '))));
+    }
+  }
+
+  // ── Hash computation ──────────────────────────────────────────────────────────
+
+  Future<String?> _computeHash(String filePath) async {
+    try {
+      final bytes = await File(filePath).readAsBytes();
+      return sha256.convert(bytes).toString();
+    } catch (_) {
+      return null;
     }
   }
 
@@ -1024,7 +1161,12 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   // ── Filter menu (status + tag) ───────────────────────────────────────────────
 
   void _showFilterMenu(BuildContext context) async {
-    final tags = await ref.read(tagsProvider.future);
+    List<dynamic> tags;
+    try {
+      tags = await ref.read(tagsProvider.future);
+    } catch (_) {
+      tags = [];
+    }
     if (!context.mounted) return;
 
     final currentTagFilter = ref.read(tagFilterProvider);
@@ -1097,7 +1239,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     ListTile(
                       leading: const Icon(Icons.label_off_outlined),
                       title: const Text('Tutti i tag'),
-                      trailing: currentTagFilter == null
+                      trailing: localTagId == null
                           ? Icon(Icons.check,
                               color: Theme.of(ctx).colorScheme.primary, size: 18)
                           : null,
@@ -1107,7 +1249,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       },
                     ),
                     ...tags.map((tag) {
-                      final tagColor = _parseTagColor(tag.color);
+                      final tagColor = _parseTagColor(tag.color as String);
                       return ListTile(
                         leading: Container(
                           width: 12,
@@ -1115,15 +1257,16 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                           decoration: BoxDecoration(
                               color: tagColor, shape: BoxShape.circle),
                         ),
-                        title: Text(tag.name),
-                        trailing: currentTagFilter == tag.id
+                        title: Text(tag.name as String),
+                        trailing: localTagId == (tag.id as int?)
                             ? Icon(Icons.check,
                                 color: Theme.of(ctx).colorScheme.primary,
                                 size: 18)
                             : null,
                         onTap: () {
+                          setSheetState(() => localTagId = tag.id as int?);
                           ref.read(tagFilterProvider.notifier).state =
-                              tag.id;
+                              tag.id as int?;
                           Navigator.pop(ctx);
                         },
                       );
@@ -1480,7 +1623,11 @@ class _SongGridCard extends StatelessWidget {
                               if (song.status != SongStatus.none)
                                 _MetaBadge(label: song.status.label, color: song.status.color),
                               if (song.keySignature != null)
-                                _MetaBadge(label: song.keySignature!, color: const Color(0xFF4A90D9)),
+                                _MetaBadge(
+                                    label: KeySignatureLocalization.display(
+                                        song.keySignature!,
+                                        Localizations.localeOf(context)),
+                                    color: const Color(0xFF4A90D9)),
                             ],
                           ),
                         ),
@@ -1628,7 +1775,10 @@ class _SongSearchDelegate extends SearchDelegate<String> {
                   subtitle: Text(
                     [
                       if (song.composerName != null) song.composerName!,
-                      if (song.keySignature != null) song.keySignature!,
+                      if (song.keySignature != null)
+                        KeySignatureLocalization.display(
+                            song.keySignature!,
+                            Localizations.localeOf(context)),
                     ].join(' · '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

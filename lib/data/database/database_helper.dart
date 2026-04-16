@@ -4,7 +4,7 @@ import 'package:path/path.dart';
 
 class DatabaseHelper {
   static const _databaseName = 'noteton.db';
-  static const _databaseVersion = 4;
+  static const _databaseVersion = 6;
 
   DatabaseHelper._();
   static final DatabaseHelper instance = DatabaseHelper._();
@@ -61,7 +61,8 @@ class DatabaseHelper {
         status         TEXT NOT NULL DEFAULT 'none',
         key_signature  TEXT,
         bpm            INTEGER,
-        instrument     TEXT
+        instrument     TEXT,
+        file_hash      TEXT
       )
     ''');
 
@@ -168,6 +169,39 @@ class DatabaseHelper {
       await db.execute('ALTER TABLE songs ADD COLUMN key_signature TEXT');
       await db.execute('ALTER TABLE songs ADD COLUMN bpm INTEGER');
       await db.execute('ALTER TABLE songs ADD COLUMN instrument TEXT');
+    }
+    if (oldVersion < 5) {
+      await db.execute('ALTER TABLE songs ADD COLUMN file_hash TEXT');
+    }
+    if (oldVersion < 6) {
+      // tags e song_tags erano solo in _onCreate, mai migrati — fix per utenti esistenti
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS tags (
+          id    INTEGER PRIMARY KEY AUTOINCREMENT,
+          name  TEXT NOT NULL UNIQUE,
+          color TEXT NOT NULL DEFAULT '#607D8B'
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS song_tags (
+          song_id INTEGER NOT NULL REFERENCES songs(id) ON DELETE CASCADE,
+          tag_id  INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+          PRIMARY KEY (song_id, tag_id)
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS annotations (
+          id              INTEGER PRIMARY KEY AUTOINCREMENT,
+          song_id         INTEGER NOT NULL REFERENCES songs(id) ON DELETE CASCADE,
+          page_number     INTEGER NOT NULL,
+          annotation_data TEXT NOT NULL,
+          created_at      TEXT NOT NULL
+        )
+      ''');
+      await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_song_tags_song ON song_tags(song_id)');
+      await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_annotations_song ON annotations(song_id, page_number)');
     }
   }
 }

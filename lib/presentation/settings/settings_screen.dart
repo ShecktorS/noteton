@@ -189,12 +189,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const ListTile(
                 leading: Icon(Icons.info_outline),
                 title: Text('Versione'),
-                subtitle: Text('Noteton 0.2.0'),
+                subtitle: Text('Noteton 0.2.2'),
               ),
               const ListTile(
                 leading: Icon(Icons.balance),
                 title: Text('Licenza'),
-                subtitle: Text('MIT / GPL — Open Source'),
+                subtitle: Text('MIT / GPL · Open Source'),
               ),
             ],
           ),
