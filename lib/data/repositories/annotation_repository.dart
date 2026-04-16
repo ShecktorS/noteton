@@ -1,8 +1,9 @@
+import 'package:sqflite/sqflite.dart';
 import '../database/database_helper.dart';
 import '../../domain/models/drawing_stroke.dart';
 
 class AnnotationRepository {
-  Future<dynamic> get _db => DatabaseHelper.instance.database;
+  Future<Database> get _db => DatabaseHelper.instance.database;
 
   Future<PageAnnotations?> getPage(int songId, int pageNumber) async {
     final db = await _db;

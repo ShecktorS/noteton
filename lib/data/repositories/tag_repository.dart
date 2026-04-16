@@ -1,8 +1,9 @@
+import 'package:sqflite/sqflite.dart';
 import '../../domain/models/tag.dart';
 import '../database/database_helper.dart';
 
 class TagRepository {
-  Future<dynamic> get _db => DatabaseHelper.instance.database;
+  Future<Database> get _db => DatabaseHelper.instance.database;
 
   Future<List<Tag>> getAll() async {
     final db = await _db;
