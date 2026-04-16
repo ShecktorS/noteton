@@ -1,9 +1,16 @@
 import 'dart:io';
 
+import 'package:archive/archive.dart';
+import 'package:crypto/crypto.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:pdfx/pdfx.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:uuid/uuid.dart';
+import '../../domain/models/song.dart';
 import '../../domain/models/tag.dart';
 import '../../providers/providers.dart';
 import '../common/app_bottom_nav.dart';
@@ -55,14 +62,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final fileName = tempPath.split('/').last;
 
       if (choice == _ExportChoice.save) {
+        // On Android/iOS, file_picker.saveFile() requires bytes to perform the write itself
+        final bytes = await File(tempPath).readAsBytes();
         final destPath = await FilePicker.platform.saveFile(
           dialogTitle: 'Salva backup Noteton',
           fileName: fileName,
           type: FileType.custom,
           allowedExtensions: ['ntb'],
+          bytes: bytes,
         );
         if (destPath == null) return; // user cancelled
-        await File(tempPath).copy(destPath);
+        // On desktop, saveFile returns the path but doesn't write — copy fallback
+        final saved = File(destPath);
+        if (!await saved.exists() || (await saved.length()) == 0) {
+          await File(tempPath).copy(destPath);
+        }
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Backup salvato sul dispositivo')),
@@ -115,6 +129,121 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Errore ripristino: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isImporting = false);
+    }
+  }
+
+  /// Importa tutti i PDF trovati dentro un archivio ZIP (es. export MobileSheets).
+  Future<void> _importFromZip() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['zip'],
+    );
+    if (result == null || result.files.single.path == null) return;
+
+    setState(() => _isImporting = true);
+
+    int done = 0;
+    int skipped = 0;
+    int failed = 0;
+
+    try {
+      final zipPath = result.files.single.path!;
+      final zipBytes = await File(zipPath).readAsBytes();
+      final archive = ZipDecoder().decodeBytes(zipBytes);
+
+      final pdfEntries = archive.files.where((f) {
+        if (!f.isFile) return false;
+        final name = f.name.toLowerCase();
+        return name.endsWith('.pdf');
+      }).toList();
+
+      if (pdfEntries.isEmpty) {
+        if (mounted) {
+          setState(() => _isImporting = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Nessun PDF trovato nello ZIP')),
+          );
+        }
+        return;
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content:
+                  Text('Trovati ${pdfEntries.length} PDF, importazione in corso…')),
+        );
+      }
+
+      final docsDir = await getApplicationDocumentsDirectory();
+      final pdfsDir = Directory(p.join(docsDir.path, 'pdfs'));
+      await pdfsDir.create(recursive: true);
+      final songRepo = ref.read(songRepositoryProvider);
+
+      for (final entry in pdfEntries) {
+        try {
+          final content = entry.content as List<int>;
+          if (content.isEmpty) {
+            failed++;
+            continue;
+          }
+          // Hash check — dedup contro libreria esistente
+          final fileHash = sha256.convert(content).toString();
+          final existing = await songRepo.getByHash(fileHash);
+          if (existing != null) {
+            skipped++;
+            continue;
+          }
+
+          final destPath = p.join(pdfsDir.path, '${const Uuid().v4()}.pdf');
+          await File(destPath).writeAsBytes(content);
+
+          int totalPages = 0;
+          try {
+            final doc = await PdfDocument.openFile(destPath);
+            totalPages = doc.pagesCount;
+            await doc.close();
+          } catch (_) {}
+
+          // Nome file senza estensione, ignorando eventuale directory nello ZIP
+          final title = p.basenameWithoutExtension(entry.name);
+          final now = DateTime.now();
+          await songRepo.insert(Song(
+            title: title,
+            filePath: destPath,
+            totalPages: totalPages,
+            lastPage: 0,
+            fileHash: fileHash,
+            createdAt: now,
+            updatedAt: now,
+          ));
+          done++;
+        } catch (_) {
+          failed++;
+        }
+      }
+
+      ref.invalidate(songsProvider);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        final parts = <String>[];
+        if (done > 0) parts.add('$done importati');
+        if (skipped > 0) parts.add('$skipped già presenti');
+        if (failed > 0) parts.add('$failed falliti');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(parts.join(', '))),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Errore import ZIP: $e')),
         );
       }
     } finally {
@@ -241,6 +370,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 subtitle: const Text('Importa da un file .ntb'),
                 onTap: _isImporting ? null : _importBackup,
               ),
+              ListTile(
+                leading: const Icon(Icons.folder_zip_outlined),
+                title: const Text('Importa da ZIP'),
+                subtitle: const Text(
+                    'Estrai tutti i PDF da uno ZIP (es. export MobileSheets)'),
+                onTap: _isImporting ? null : _importFromZip,
+              ),
               const Divider(),
               const _SectionHeader('Info'),
               ListTile(
@@ -252,7 +388,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const ListTile(
                 leading: Icon(Icons.info_outline),
                 title: Text('Versione'),
-                subtitle: Text('Noteton 0.2.2'),
+                subtitle: Text('Noteton 0.3.0'),
               ),
               const ListTile(
                 leading: Icon(Icons.balance),

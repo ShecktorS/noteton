@@ -109,6 +109,23 @@ class SongRepository {
     }
   }
 
+  /// Returns the song whose PDF has the given SHA-256 hash, or null.
+  Future<Song?> getByHash(String hash) async {
+    final db = await _db;
+    final rows = await db.rawQuery(
+      '''
+      SELECT s.*, c.name AS composer_name
+      FROM songs s
+      LEFT JOIN composers c ON s.composer_id = c.id
+      WHERE s.file_hash = ?
+      LIMIT 1
+      ''',
+      [hash],
+    );
+    if (rows.isEmpty) return null;
+    return Song.fromMap(rows.first);
+  }
+
   // Tags
   Future<List<Tag>> getTagsForSong(int songId) async {
     final db = await _db;

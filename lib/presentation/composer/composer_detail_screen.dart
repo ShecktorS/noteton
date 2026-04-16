@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/key_signature_localization.dart';
 import '../../domain/models/composer.dart';
 import '../../domain/models/song.dart';
 import '../../providers/providers.dart';
@@ -84,7 +85,10 @@ class ComposerDetailScreen extends ConsumerWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis),
                         subtitle: song.keySignature != null
-                            ? Text(song.keySignature!,
+                            ? Text(
+                                KeySignatureLocalization.display(
+                                    song.keySignature!,
+                                    Localizations.localeOf(context)),
                                 style: TextStyle(
                                     fontSize: 11,
                                     color: Theme.of(context)
