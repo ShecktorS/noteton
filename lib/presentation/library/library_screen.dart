@@ -346,7 +346,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         mainAxisSpacing: 12,
       ),
       itemCount: songs.length,
-      itemBuilder: (context, i) {
+      itemBuilder: (_, i) {
         final song = songs[i];
         final isSelected = _selectedIds.contains(song.id);
         return _SongGridCard(
@@ -373,7 +373,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       controller: _scrollController,
       padding: const EdgeInsets.symmetric(vertical: 8),
       itemCount: songs.length,
-      itemBuilder: (context, i) {
+      itemBuilder: (_, i) {
         final song = songs[i];
         final isSelected = _selectedIds.contains(song.id);
         return ListTile(
