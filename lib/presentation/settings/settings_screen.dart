@@ -122,6 +122,63 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  void _showMigrationGuide(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Migrazione da MobileSheets'),
+        content: const SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _MigrationStep(
+                number: '1',
+                title: 'Esporta da MobileSheets',
+                body:
+                    'Apri MobileSheets → Menu → Backup/Export → "Export to ZIP" '
+                    '(o "Backup"). Scegli una cartella accessibile, ad esempio '
+                    'Downloads.',
+              ),
+              SizedBox(height: 16),
+              _MigrationStep(
+                number: '2',
+                title: 'Estrai il file ZIP',
+                body:
+                    'Il backup MobileSheets è uno ZIP standard che contiene tutti '
+                    'i tuoi PDF nella cartella /files/. Aprilo con un file manager '
+                    'e copia i PDF sul dispositivo.',
+              ),
+              SizedBox(height: 16),
+              _MigrationStep(
+                number: '3',
+                title: 'Importa in Noteton',
+                body:
+                    'Torna in Noteton → tocca il pulsante + in basso a destra → '
+                    '"Importa più file" → seleziona tutti i PDF estratti. '
+                    'Noteton rileva i duplicati automaticamente.',
+              ),
+              SizedBox(height: 16),
+              _MigrationStep(
+                number: '4',
+                title: 'Nota sul formato .msb',
+                body:
+                    'I file .msb (backup singolo brano) non sono supportati — '
+                    'contengono un formato binario proprietario. Solo i PDF '
+                    'estratti dallo ZIP funzionano.',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Chiudi'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
@@ -186,6 +243,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               const Divider(),
               const _SectionHeader('Info'),
+              ListTile(
+                leading: const Icon(Icons.import_export),
+                title: const Text('Migrazione da MobileSheets'),
+                subtitle: const Text('Come importare i tuoi PDF da MobileSheets'),
+                onTap: () => _showMigrationGuide(context),
+              ),
               const ListTile(
                 leading: Icon(Icons.info_outline),
                 title: Text('Versione'),
@@ -228,6 +291,63 @@ class _SectionHeader extends StatelessWidget {
 }
 
 enum _ExportChoice { save, share }
+
+// ── Migration guide step widget ───────────────────────────────────────────────
+
+class _MigrationStep extends StatelessWidget {
+  final String number;
+  final String title;
+  final String body;
+
+  const _MigrationStep({
+    required this.number,
+    required this.title,
+    required this.body,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 28,
+          height: 28,
+          margin: const EdgeInsets.only(right: 12, top: 2),
+          decoration: BoxDecoration(
+            color: colorScheme.primary,
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            number,
+            style: textTheme.labelLarge?.copyWith(
+              color: colorScheme.onPrimary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(body, style: textTheme.bodyMedium),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
 
 // ── Tags section ──────────────────────────────────────────────────────────────
 

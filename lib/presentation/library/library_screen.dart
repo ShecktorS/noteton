@@ -19,6 +19,7 @@ import '../../domain/models/collection.dart';
 import '../../domain/models/setlist.dart';
 import '../../domain/models/setlist_item.dart';
 import '../../domain/models/song.dart';
+import '../../domain/models/tag.dart';
 import '../../providers/providers.dart';
 import '../common/app_bottom_nav.dart';
 import '../common/pdf_thumbnail.dart';
@@ -409,9 +410,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 spacing: 6,
                 runSpacing: 2,
                 children: [
-                  if (song.lastPage > 0 && song.totalPages > 0)
+                  if (song.totalPages > 0)
                     Text(
-                      'Pag. ${song.lastPage}/${song.totalPages}',
+                      song.lastPage > 0
+                          ? 'Pag. ${song.lastPage}/${song.totalPages}'
+                          : '${song.totalPages} pag.',
                       style: TextStyle(
                           fontSize: 10,
                           color: Theme.of(context).colorScheme.primary),
@@ -501,9 +504,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           ListTile(
             leading: const Icon(Icons.edit_outlined),
             title: const Text('Modifica dettagli'),
-            onTap: () {
+            onTap: () async {
               Navigator.pop(ctx);
-              _showEditDialog(context, song);
+              await _showEditDialog(context, song);
             },
           ),
           ListTile(
@@ -513,25 +516,25 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 ? Text(song.status.label,
                     style: TextStyle(color: song.status.color, fontSize: 12))
                 : null,
-            onTap: () {
+            onTap: () async {
               Navigator.pop(ctx);
-              _showStatusPicker(context, song);
+              await _showStatusPicker(context, song);
             },
           ),
           ListTile(
             leading: const Icon(Icons.local_offer_outlined),
             title: const Text('Tag'),
-            onTap: () {
+            onTap: () async {
               Navigator.pop(ctx);
-              _showTagPicker(context, song);
+              await _showTagPicker(context, song);
             },
           ),
           ListTile(
             leading: const Icon(Icons.folder_special_outlined),
             title: const Text('Aggiungi a raccolta'),
-            onTap: () {
+            onTap: () async {
               Navigator.pop(ctx);
-              _showAddToCollectionDialog(context, song);
+              await _showAddToCollectionDialog(context, song);
             },
           ),
           ListTile(
@@ -540,9 +543,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             title: Text('Elimina',
                 style:
                     TextStyle(color: Theme.of(context).colorScheme.error)),
-            onTap: () {
+            onTap: () async {
               Navigator.pop(ctx);
-              _confirmDelete(context, song);
+              await _confirmDelete(context, song);
             },
           ),
           const SizedBox(height: 8),
@@ -619,7 +622,17 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   // ── Tag picker ───────────────────────────────────────────────────────────────
 
   Future<void> _showTagPicker(BuildContext context, Song song) async {
-    final allTags = await ref.read(tagsProvider.future);
+    ref.invalidate(tagsProvider);
+    final List<Tag> allTags;
+    try {
+      allTags = await ref.read(tagsProvider.future);
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Errore caricamento tag: $e')),
+      );
+      return;
+    }
     if (!context.mounted) return;
 
     if (allTags.isEmpty) {
@@ -653,7 +666,17 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   /// Tag picker per selezione massiva (più brani selezionati).
   Future<void> _showBulkTagPicker(BuildContext context) async {
-    final allTags = await ref.read(tagsProvider.future);
+    ref.invalidate(tagsProvider);
+    final List<dynamic> allTags;
+    try {
+      allTags = await ref.read(tagsProvider.future);
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Errore caricamento tag: $e')),
+      );
+      return;
+    }
     if (!context.mounted) return;
 
     if (allTags.isEmpty) {
@@ -1606,9 +1629,11 @@ class _SongGridCard extends StatelessWidget {
                                 ),
                           ),
                         ),
-                      if (song.lastPage > 0 && song.totalPages > 0)
+                      if (song.totalPages > 0)
                         Text(
-                          'Pag. ${song.lastPage} / ${song.totalPages}',
+                          song.lastPage > 0
+                              ? 'Pag. ${song.lastPage} / ${song.totalPages}'
+                              : '${song.totalPages} pag.',
                           style: TextStyle(
                               fontSize: 10,
                               color: Theme.of(context).colorScheme.primary),
