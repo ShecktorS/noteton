@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/services/metronome_service.dart';
 import '../core/services/update_service.dart';
 import '../data/repositories/song_repository.dart';
 import '../data/repositories/setlist_repository.dart';
@@ -265,6 +266,12 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
 
 final updateServiceProvider =
     Provider<UpdateService>((_) => const UpdateService());
+
+/// Singleton del servizio metronomo: sopravvive a navigazione e rebuild.
+/// La modale lo legge con `ref.watch` (via ChangeNotifierProvider-like) e
+/// chiama metodi di stato (start/stop/setBpm) come azioni.
+final metronomeServiceProvider = ChangeNotifierProvider<MetronomeService>(
+    (_) => MetronomeService());
 
 final updateProvider =
     StateNotifierProvider<UpdateNotifier, UpdateState>((ref) {
