@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pdfx/pdfx.dart';
 
+import '../../core/utils/song_path.dart';
 import '../../domain/models/song.dart';
 import '../../domain/models/drawing_stroke.dart';
 import '../../providers/providers.dart';
@@ -82,7 +83,18 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
         _metronome.setBpm(song.bpm!);
       }
       final initialPage = song.lastPage > 0 ? song.lastPage : 1;
-      final doc = await PdfDocument.openFile(song.filePath);
+      final resolved = await SongPath.resolveDetailed(song.filePath);
+      if (!resolved.exists) {
+        if (mounted) {
+          setState(() {
+            _error =
+                'PDF non disponibile sul dispositivo.\nPotrebbe essere stato spostato o eliminato. Controlla "Salute libreria" nelle impostazioni.';
+            _loading = false;
+          });
+        }
+        return;
+      }
+      final doc = await PdfDocument.openFile(resolved.path);
       final actualTotalPages = doc.pagesCount;
 
       // Persist totalPages immediately if it differs from the stored value.

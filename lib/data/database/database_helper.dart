@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
+import '../../core/services/checkpoint_service.dart';
+
 class DatabaseHelper {
   static const _databaseName = 'noteton.db';
   static const _databaseVersion = 6;
@@ -16,6 +18,16 @@ class DatabaseHelper {
     return _db!;
   }
 
+  /// Chiude la connessione corrente e resetta il riferimento in memoria.
+  /// Dopo questa chiamata il prossimo accesso a [database] riapre il file.
+  /// Usato dal restore checkpoint (che sovrascrive il file DB).
+  Future<void> closeAndReset() async {
+    try {
+      await _db?.close();
+    } catch (_) {}
+    _db = null;
+  }
+
   // ignore: invalid_use_of_visible_for_testing_member
   @visibleForTesting
   void setTestDatabase(Database db) => _db = db;
@@ -28,6 +40,12 @@ class DatabaseHelper {
     } catch (_) {
       path = _databaseName;
     }
+
+    // Pre-migration hook: se il DB esiste già e la sua versione è più
+    // vecchia di quella del codice, crea un checkpoint così l'utente
+    // può tornare indietro in caso di rollback necessario.
+    await _createPreMigrationCheckpointIfNeeded(path);
+
     final db = await openDatabase(
       path,
       version: _databaseVersion,
@@ -36,6 +54,31 @@ class DatabaseHelper {
     );
     await db.execute('PRAGMA foreign_keys = ON');
     return db;
+  }
+
+  /// Se il DB esiste già ed è più vecchio della versione target, crea uno
+  /// snapshot prima di farlo migrare. Silenzioso in caso di errori
+  /// (il checkpoint è best-effort, non deve bloccare l'apertura del DB).
+  Future<void> _createPreMigrationCheckpointIfNeeded(String dbPath) async {
+    if (kIsWeb) return;
+    try {
+      // Apri in sola lettura per ispezionare user_version senza triggerare
+      // onUpgrade. Se il file non esiste, `openReadOnlyDatabase` lancia:
+      // in quel caso siamo a fresh install → niente checkpoint.
+      final ro = await openReadOnlyDatabase(dbPath);
+      int currentVersion = 0;
+      try {
+        currentVersion = await ro.getVersion();
+      } finally {
+        await ro.close();
+      }
+      if (currentVersion > 0 && currentVersion < _databaseVersion) {
+        await const CheckpointService()
+            .create('pre-db-migration-v$currentVersion-v$_databaseVersion');
+      }
+    } catch (_) {
+      // Fresh install o errore di lettura → nessun checkpoint.
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pdfx/pdfx.dart';
 
+import '../../core/utils/song_path.dart';
 import '../../domain/models/setlist_item.dart';
 import '../../domain/models/drawing_stroke.dart';
 import '../../providers/providers.dart';
@@ -94,7 +95,16 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
             : (song.lastPage > 0 ? song.lastPage : 1);
 
     final controller = PdfController(
-      document: PdfDocument.openFile(song.filePath),
+      // Passa dal resolver: Song.filePath può essere assoluto (legacy) o
+      // relativo alla docs dir (backup restore / import >= 0.3.4).
+      // Se il file manca, `openFile` lancerà un errore catturato da
+      // PdfView builder error.
+      document: SongPath.resolveDetailed(song.filePath).then((r) {
+        if (!r.exists) {
+          throw StateError('PDF non disponibile sul dispositivo.');
+        }
+        return PdfDocument.openFile(r.path);
+      }),
       initialPage: initialPage,
     );
 

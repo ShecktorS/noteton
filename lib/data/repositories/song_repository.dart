@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
+import '../../core/utils/song_path.dart';
 import '../../domain/models/song.dart';
 import '../../domain/models/tag.dart';
 import '../database/database_helper.dart';
@@ -97,14 +98,57 @@ class SongRepository {
     );
   }
 
+  /// Cancella un brano in modo atomico rispetto al filesystem.
+  ///
+  /// Sequenza:
+  /// 1. risolvi path del PDF
+  /// 2. **rinomina** il PDF in `<path>.tombstone` (rename è atomico sullo
+  ///    stesso filesystem — Android ext4, non fallisce a metà)
+  /// 3. esegui `DELETE` sul DB
+  /// 4. cancella il tombstone (fire-and-forget)
+  ///
+  /// Se il passo 3 fallisce, ripristiniamo il nome originale del file in
+  /// modo che lo stato utente resti coerente (PDF presente + riga DB).
   Future<void> delete(int id) async {
     final db = await _db;
     final song = await getById(id);
-    await db.delete('songs', where: 'id = ?', whereArgs: [id]);
+
+    File? pdfFile;
+    File? tombstone;
+
     if (song != null && !kIsWeb) {
       try {
-        final file = File(song.filePath);
-        if (await file.exists()) await file.delete();
+        final resolved = await SongPath.resolveDetailed(song.filePath);
+        if (resolved.exists) {
+          pdfFile = File(resolved.path);
+          tombstone = File('${resolved.path}.tombstone');
+          await pdfFile.rename(tombstone.path);
+        }
+      } catch (_) {
+        // Se la rename fallisce procediamo comunque con la delete DB —
+        // lasceremo un file orfano che il health check potrà ripulire.
+        tombstone = null;
+      }
+    }
+
+    try {
+      await db.delete('songs', where: 'id = ?', whereArgs: [id]);
+    } catch (e) {
+      // Rollback: ripristina il PDF al nome originale, se esiste il tombstone.
+      if (tombstone != null && pdfFile != null) {
+        try {
+          if (await tombstone.exists()) {
+            await tombstone.rename(pdfFile.path);
+          }
+        } catch (_) {}
+      }
+      rethrow;
+    }
+
+    // DB OK → elimina definitivamente il tombstone (best-effort).
+    if (tombstone != null) {
+      try {
+        if (await tombstone.exists()) await tombstone.delete();
       } catch (_) {}
     }
   }

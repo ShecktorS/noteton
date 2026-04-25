@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pdfx/pdfx.dart';
 
+import '../../core/utils/song_path.dart';
+
 /// Thumbnail di un PDF. [size] è la dimensione del widget quadrato visualizzato.
 /// [renderWidth] e [renderHeight] sono le dimensioni di rendering (qualità).
 /// Se [renderWidth]/[renderHeight] non specificati, usa valori adeguati alla [size].
@@ -58,7 +60,12 @@ class _PdfThumbnailState extends State<PdfThumbnail> {
     PdfDocument? doc;
     PdfPage? page;
     try {
-      doc = await PdfDocument.openFile(widget.filePath);
+      final resolved = await SongPath.resolveDetailed(widget.filePath);
+      if (!resolved.exists) {
+        if (mounted) setState(() => _loaded = true);
+        return;
+      }
+      doc = await PdfDocument.openFile(resolved.path);
       page = await doc.getPage(1);
       final rw = widget.renderWidth ?? (widget.size * 2);
       final rh = widget.renderHeight ?? (widget.size * 2.5);
@@ -159,7 +166,12 @@ class _PdfThumbnailExpandedState extends State<PdfThumbnailExpanded> {
     PdfDocument? doc;
     PdfPage? page;
     try {
-      doc = await PdfDocument.openFile(widget.filePath);
+      final resolved = await SongPath.resolveDetailed(widget.filePath);
+      if (!resolved.exists) {
+        if (mounted) setState(() => _loaded = true);
+        return;
+      }
+      doc = await PdfDocument.openFile(resolved.path);
       page = await doc.getPage(1);
       final image = await page.render(
         width: page.width / 2,

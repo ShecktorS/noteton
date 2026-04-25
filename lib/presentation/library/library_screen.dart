@@ -15,6 +15,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/key_signature_localization.dart';
+import '../../core/utils/song_path.dart';
 import '../../domain/models/collection.dart';
 import '../../domain/models/setlist.dart';
 import '../../domain/models/setlist_item.dart';
@@ -1040,10 +1041,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       final title =
           importResult?.title ?? p.basenameWithoutExtension(picked.name);
       final now = DateTime.now();
+      // Salviamo path relativo alla docs dir (vedi SongPath). La rotta
+      // assoluta cambia tra reinstall → i path assoluti salvati in DB
+      // diventano invalidi.
+      final relativeFilePath = await SongPath.toRelative(destPath);
       final savedSong = await ref.read(songRepositoryProvider).insert(Song(
             title: title,
             composerId: composerId,
-            filePath: destPath,
+            filePath: relativeFilePath,
             totalPages: totalPages,
             lastPage: 0,
             fileHash: fileHash,
@@ -1135,9 +1140,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
           final title = p.basenameWithoutExtension(file.name);
           final now = DateTime.now();
+          final relativeFilePath = await SongPath.toRelative(destPath);
           await ref.read(songRepositoryProvider).insert(Song(
                 title: title,
-                filePath: destPath,
+                filePath: relativeFilePath,
                 totalPages: totalPages,
                 lastPage: 0,
                 fileHash: fileHash,
