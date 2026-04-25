@@ -1,7 +1,7 @@
 name: noteton
 description: A modern open-source sheet music manager. Alternative to MobileSheets.
 publish_to: 'none'
-version: 0.3.0+5
+version: 0.6.0+14
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -44,6 +44,8 @@ dependencies:
   archive: ^3.6.1
   share_plus: ^10.1.2
   crypto: ^3.0.3
+  http: ^1.2.2
+  package_info_plus: ^8.1.1
 
   # Icons
   cupertino_icons: ^1.0.8

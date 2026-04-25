@@ -2,8 +2,14 @@ class AppConstants {
   AppConstants._();
 
   static const String appName = 'Noteton';
-  static const String appVersion = '0.1.0';
+  static const String appVersion = '0.6.0';
   static const int databaseVersion = 3;
+
+  // GitHub Releases
+  static const String githubOwner = 'ShecktorS';
+  static const String githubRepo = 'noteton';
+  static const String githubApiLatestRelease =
+      'https://api.github.com/repos/$githubOwner/$githubRepo/releases/latest';
 
   // Route names
   static const String routeLibrary = '/';

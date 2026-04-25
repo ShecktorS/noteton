@@ -1,19 +1,18 @@
 import 'dart:io';
 
-import 'package:archive/archive.dart';
-import 'package:crypto/crypto.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
-import 'package:pdfx/pdfx.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:uuid/uuid.dart';
-import '../../domain/models/song.dart';
+import '../../core/exceptions/backup_exceptions.dart';
+import '../../domain/models/import_report.dart';
 import '../../domain/models/tag.dart';
 import '../../providers/providers.dart';
 import '../common/app_bottom_nav.dart';
+import 'auto_update_screen.dart';
+import 'diagnostic_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -24,6 +23,22 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isImporting = false;
+  String _appVersion = '';
+
+  // Contatore tap nascosto per aprire il pannello diagnostico (7 tap <3s).
+  int _versionTapCount = 0;
+  DateTime? _versionFirstTap;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    if (mounted) setState(() => _appVersion = info.version);
+  }
 
   Future<void> _exportBackup() async {
     if (!mounted) return;
@@ -98,156 +113,228 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _importBackup() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['ntb'],
-    );
+    // NB: usiamo FileType.any invece di custom+allowedExtensions['ntb']
+    // perché `.ntb` non ha un MIME type registrato su Android e il picker
+    // nativo può chiudersi subito senza mostrare il file. Validiamo il
+    // suffisso lato Dart dopo la selezione.
+    FilePickerResult? result;
+    try {
+      result = await FilePicker.platform.pickFiles(type: FileType.any);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Impossibile aprire il selettore file: $e')),
+        );
+      }
+      return;
+    }
 
-    if (result == null || result.files.single.path == null) return;
+    if (result == null || result.files.single.path == null) {
+      // Selezione annullata dall'utente — nessun feedback necessario
+      return;
+    }
+    if (!mounted) return;
+
+    final selectedPath = result.files.single.path!;
+    if (!selectedPath.toLowerCase().endsWith('.ntb')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Seleziona un file con estensione .ntb '
+                '(backup Noteton)')),
+      );
+      return;
+    }
+
+    // Dialog di scelta modalità: Unisci vs Sostituisci tutto
+    final choice = await showDialog<_ImportMode>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Modalità ripristino'),
+        content: const Text(
+          'Come vuoi ripristinare il backup?\n\n'
+          '• Unisci: aggiunge i brani del backup alla libreria attuale, '
+          'saltando i duplicati (stesso PDF).\n\n'
+          '• Sostituisci tutto: cancella l\'intera libreria attuale '
+          '(brani, setlist, raccolte, tag, annotazioni) e importa il backup.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annulla'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, _ImportMode.merge),
+            child: const Text('Unisci'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, _ImportMode.replace),
+            child: const Text(
+              'Sostituisci tutto',
+              style: TextStyle(color: Colors.redAccent),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (choice == null) return;
+    if (!mounted) return;
+
+    // Seconda conferma per la modalità distruttiva
+    if (choice == _ImportMode.replace) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Cancellare tutta la libreria?'),
+          content: const Text(
+            'Questa azione è irreversibile. Tutti i brani, setlist, '
+            'raccolte, tag e annotazioni attuali verranno sostituiti dal '
+            'contenuto del backup. Vuoi continuare?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annulla'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text(
+                'Cancella e ripristina',
+                style: TextStyle(color: Colors.redAccent),
+              ),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) return;
+      if (!mounted) return;
+    }
 
     setState(() => _isImporting = true);
 
     final backup = ref.read(backupRepositoryProvider);
     try {
-      final summary = await backup.importBackup(result.files.single.path!);
+      final report = await backup.importBackup(
+        selectedPath,
+        wipeBeforeImport: choice == _ImportMode.replace,
+      );
+      // Invalida tutti i provider affinché UI si aggiorni subito
+      ref.invalidate(songsProvider);
+      ref.invalidate(setlistsProvider);
+      ref.invalidate(collectionsProvider);
+      ref.invalidate(tagsProvider);
       if (mounted) {
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Ripristino completato'),
-            content: Text(summary),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
+        _showImportReport(report);
       }
+    } on BackupException catch (e) {
+      if (mounted) _showImportError(e.userMessage, technicalDetail: e.technicalDetail);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Errore ripristino: $e')),
-        );
+        _showImportError(
+            'Ripristino non riuscito per un errore imprevisto.',
+            technicalDetail: e.toString());
       }
     } finally {
       if (mounted) setState(() => _isImporting = false);
     }
   }
 
-  /// Importa tutti i PDF trovati dentro un archivio ZIP (es. export MobileSheets).
-  Future<void> _importFromZip() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['zip'],
+  void _showImportReport(ImportReport report) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(report.hasWarnings
+            ? 'Ripristino completato con avvisi'
+            : 'Ripristino completato'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(report.shortSummary),
+              const SizedBox(height: 12),
+              Text(
+                report.fullText,
+                style: Theme.of(ctx).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: report.fullText));
+              ScaffoldMessenger.of(ctx).showSnackBar(
+                const SnackBar(content: Text('Dettagli copiati')),
+              );
+            },
+            child: const Text('Copia dettagli'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
     );
-    if (result == null || result.files.single.path == null) return;
+  }
 
-    setState(() => _isImporting = true);
+  void _showImportError(String userMessage, {String? technicalDetail}) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Ripristino non riuscito'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(userMessage),
+            if (technicalDetail != null && technicalDetail.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Theme(
+                data: Theme.of(ctx).copyWith(dividerColor: Colors.transparent),
+                child: ExpansionTile(
+                  title: const Text('Dettagli tecnici'),
+                  tilePadding: EdgeInsets.zero,
+                  childrenPadding: EdgeInsets.zero,
+                  children: [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: SelectableText(
+                        technicalDetail,
+                        style: Theme.of(ctx).textTheme.bodySmall,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Chiudi'),
+          ),
+        ],
+      ),
+    );
+  }
 
-    int done = 0;
-    int skipped = 0;
-    int failed = 0;
-
-    try {
-      final zipPath = result.files.single.path!;
-      final zipBytes = await File(zipPath).readAsBytes();
-      final archive = ZipDecoder().decodeBytes(zipBytes);
-
-      final pdfEntries = archive.files.where((f) {
-        if (!f.isFile) return false;
-        final name = f.name.toLowerCase();
-        return name.endsWith('.pdf');
-      }).toList();
-
-      if (pdfEntries.isEmpty) {
-        if (mounted) {
-          setState(() => _isImporting = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('Nessun PDF trovato nello ZIP')),
-          );
-        }
-        return;
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content:
-                  Text('Trovati ${pdfEntries.length} PDF, importazione in corso…')),
-        );
-      }
-
-      final docsDir = await getApplicationDocumentsDirectory();
-      final pdfsDir = Directory(p.join(docsDir.path, 'pdfs'));
-      await pdfsDir.create(recursive: true);
-      final songRepo = ref.read(songRepositoryProvider);
-
-      for (final entry in pdfEntries) {
-        try {
-          final content = entry.content as List<int>;
-          if (content.isEmpty) {
-            failed++;
-            continue;
-          }
-          // Hash check — dedup contro libreria esistente
-          final fileHash = sha256.convert(content).toString();
-          final existing = await songRepo.getByHash(fileHash);
-          if (existing != null) {
-            skipped++;
-            continue;
-          }
-
-          final destPath = p.join(pdfsDir.path, '${const Uuid().v4()}.pdf');
-          await File(destPath).writeAsBytes(content);
-
-          int totalPages = 0;
-          try {
-            final doc = await PdfDocument.openFile(destPath);
-            totalPages = doc.pagesCount;
-            await doc.close();
-          } catch (_) {}
-
-          // Nome file senza estensione, ignorando eventuale directory nello ZIP
-          final title = p.basenameWithoutExtension(entry.name);
-          final now = DateTime.now();
-          await songRepo.insert(Song(
-            title: title,
-            filePath: destPath,
-            totalPages: totalPages,
-            lastPage: 0,
-            fileHash: fileHash,
-            createdAt: now,
-            updatedAt: now,
-          ));
-          done++;
-        } catch (_) {
-          failed++;
-        }
-      }
-
-      ref.invalidate(songsProvider);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).clearSnackBars();
-        final parts = <String>[];
-        if (done > 0) parts.add('$done importati');
-        if (skipped > 0) parts.add('$skipped già presenti');
-        if (failed > 0) parts.add('$failed falliti');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(parts.join(', '))),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Errore import ZIP: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isImporting = false);
+  void _onVersionTapped() {
+    final now = DateTime.now();
+    if (_versionFirstTap == null ||
+        now.difference(_versionFirstTap!) > const Duration(seconds: 3)) {
+      _versionFirstTap = now;
+      _versionTapCount = 1;
+      return;
+    }
+    _versionTapCount++;
+    if (_versionTapCount >= 7) {
+      _versionTapCount = 0;
+      _versionFirstTap = null;
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => const DiagnosticScreen(),
+      ));
     }
   }
 
@@ -262,38 +349,44 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             children: [
               _MigrationStep(
                 number: '1',
-                title: 'Esporta da MobileSheets',
+                title: 'Esporta il backup .msb da MobileSheets',
                 body:
-                    'Apri MobileSheets → Menu → Backup/Export → "Export to ZIP" '
-                    '(o "Backup"). Scegli una cartella accessibile, ad esempio '
-                    'Downloads.',
+                    'Apri MobileSheets → Menu → Backup/Ripristino → '
+                    '"Crea backup". Il file generato ha estensione .msb '
+                    '(non è uno ZIP — è un formato proprietario).',
               ),
               SizedBox(height: 16),
               _MigrationStep(
                 number: '2',
-                title: 'Estrai il file ZIP',
+                title: 'Converti su PC con msb2ntb',
                 body:
-                    'Il backup MobileSheets è uno ZIP standard che contiene tutti '
-                    'i tuoi PDF nella cartella /files/. Aprilo con un file manager '
-                    'e copia i PDF sul dispositivo.',
+                    'Copia il file .msb sul tuo PC. '
+                    'Scarica msb2ntb (disponibile su GitHub) ed eseguilo: '
+                    'trascina il file .msb sull\'icona di msb2ntb.exe '
+                    'oppure avvialo con doppio clic e inserisci il percorso '
+                    'quando richiesto. Viene creato un file .ntb con gli '
+                    'stessi PDF, titoli e autori.',
               ),
               SizedBox(height: 16),
               _MigrationStep(
                 number: '3',
-                title: 'Importa in Noteton',
+                title: 'Copia il .ntb sul telefono',
                 body:
-                    'Torna in Noteton → tocca il pulsante + in basso a destra → '
-                    '"Importa più file" → seleziona tutti i PDF estratti. '
-                    'Noteton rileva i duplicati automaticamente.',
+                    'Trasferisci il file .ntb sul dispositivo Android '
+                    'tramite USB, Google Drive, Telegram o qualsiasi altro '
+                    'metodo. Tienilo in una cartella facilmente raggiungibile '
+                    '(es. Download).',
               ),
               SizedBox(height: 16),
               _MigrationStep(
                 number: '4',
-                title: 'Nota sul formato .msb',
+                title: 'Ripristina in Noteton',
                 body:
-                    'I file .msb (backup singolo brano) non sono supportati — '
-                    'contengono un formato binario proprietario. Solo i PDF '
-                    'estratti dallo ZIP funzionano.',
+                    'Apri Noteton → Impostazioni → Ripristina backup → '
+                    'seleziona il file .ntb. Scegli "Unisci" per aggiungere '
+                    'i brani alla libreria esistente, oppure "Sostituisci '
+                    'tutto" se vuoi partire da zero. I duplicati vengono '
+                    'rilevati automaticamente tramite hash SHA-256.',
               ),
             ],
           ),
@@ -370,14 +463,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 subtitle: const Text('Importa da un file .ntb'),
                 onTap: _isImporting ? null : _importBackup,
               ),
+              const Divider(),
+              // ── Aggiornamenti ─────────────────────────────────────────────
+              const _SectionHeader('Aggiornamenti'),
               ListTile(
-                leading: const Icon(Icons.folder_zip_outlined),
-                title: const Text('Importa da ZIP'),
-                subtitle: const Text(
-                    'Estrai tutti i PDF da uno ZIP (es. export MobileSheets)'),
-                onTap: _isImporting ? null : _importFromZip,
+                leading: const Icon(Icons.system_update_outlined),
+                title: const Text('Aggiornamento automatico'),
+                subtitle: Consumer(
+                  builder: (context, ref, _) {
+                    final enabled = ref.watch(autoUpdateEnabledProvider);
+                    return Text(enabled
+                        ? 'Notifica al lancio quando esce una nuova versione'
+                        : 'Disattivato — controllo solo manuale');
+                  },
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                      builder: (_) => const AutoUpdateScreen()),
+                ),
               ),
               const Divider(),
+              // ── Info ──────────────────────────────────────────────────────
               const _SectionHeader('Info'),
               ListTile(
                 leading: const Icon(Icons.import_export),
@@ -385,10 +492,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 subtitle: const Text('Come importare i tuoi PDF da MobileSheets'),
                 onTap: () => _showMigrationGuide(context),
               ),
-              const ListTile(
-                leading: Icon(Icons.info_outline),
-                title: Text('Versione'),
-                subtitle: Text('Noteton 0.3.0'),
+              ListTile(
+                leading: const Icon(Icons.info_outline),
+                title: const Text('Versione'),
+                subtitle: Text(
+                    'Noteton${_appVersion.isNotEmpty ? ' $_appVersion' : ''}'),
+                onTap: _onVersionTapped,
               ),
               const ListTile(
                 leading: Icon(Icons.balance),
@@ -409,6 +518,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 }
 
+// ── Section header ────────────────────────────────────────────────────────────
+
 class _SectionHeader extends StatelessWidget {
   final String title;
   const _SectionHeader(this.title);
@@ -427,6 +538,8 @@ class _SectionHeader extends StatelessWidget {
 }
 
 enum _ExportChoice { save, share }
+
+enum _ImportMode { merge, replace }
 
 // ── Migration guide step widget ───────────────────────────────────────────────
 
