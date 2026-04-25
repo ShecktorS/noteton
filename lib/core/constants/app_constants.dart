@@ -2,8 +2,23 @@ class AppConstants {
   AppConstants._();
 
   static const String appName = 'Noteton';
-  static const String appVersion = '0.6.0';
-  static const int databaseVersion = 3;
+  static const String appVersion = '0.7.0';
+  static const int databaseVersion = 7;
+
+  // Periodi storici/generi musicali per organizzazione brani
+  static const List<String> musicalPeriods = [
+    'Medievale',
+    'Rinascimento',
+    'Barocco',
+    'Classico',
+    'Romantico',
+    'Moderno',
+    'Contemporaneo',
+    'Jazz',
+    'Pop/Rock',
+    'Folk',
+    'Colonna sonora',
+  ];
 
   // GitHub Releases
   static const String githubOwner = 'ShecktorS';

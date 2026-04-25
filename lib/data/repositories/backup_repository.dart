@@ -100,6 +100,8 @@ class BackupRepository {
               'keySignature': s.keySignature,
               'bpm': s.bpm,
               'instrument': s.instrument,
+              'album': s.album,
+              'period': s.period,
               'fileHash': s.fileHash,
               'createdAt': s.createdAt.toIso8601String(),
               'updatedAt': s.updatedAt.toIso8601String(),
@@ -479,6 +481,8 @@ class BackupRepository {
         keySignature: songData['keySignature'] as String?,
         bpm: songData['bpm'] as int?,
         instrument: songData['instrument'] as String?,
+        album: songData['album'] as String?,
+        period: songData['period'] as String?,
         fileHash: songData['fileHash'] as String?,
         createdAt: songData['createdAt'] != null
             ? DateTime.parse(songData['createdAt'] as String)

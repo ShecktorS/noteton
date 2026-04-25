@@ -6,7 +6,7 @@ import '../../core/services/checkpoint_service.dart';
 
 class DatabaseHelper {
   static const _databaseName = 'noteton.db';
-  static const _databaseVersion = 6;
+  static const _databaseVersion = 7;
 
   DatabaseHelper._();
   static final DatabaseHelper instance = DatabaseHelper._();
@@ -105,6 +105,8 @@ class DatabaseHelper {
         key_signature  TEXT,
         bpm            INTEGER,
         instrument     TEXT,
+        album          TEXT,
+        period         TEXT,
         file_hash      TEXT
       )
     ''');
@@ -245,6 +247,12 @@ class DatabaseHelper {
           'CREATE INDEX IF NOT EXISTS idx_song_tags_song ON song_tags(song_id)');
       await db.execute(
           'CREATE INDEX IF NOT EXISTS idx_annotations_song ON annotations(song_id, page_number)');
+    }
+    if (oldVersion < 7) {
+      // Album e periodo storico/genere — campi opzionali per organizzazione
+      // della libreria.
+      await db.execute('ALTER TABLE songs ADD COLUMN album TEXT');
+      await db.execute('ALTER TABLE songs ADD COLUMN period TEXT');
     }
   }
 }

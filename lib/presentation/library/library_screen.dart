@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
@@ -22,7 +21,10 @@ import '../../domain/models/setlist_item.dart';
 import '../../domain/models/song.dart';
 import '../../domain/models/tag.dart';
 import '../../providers/providers.dart';
+import '../common/album_autocomplete_field.dart';
 import '../common/app_bottom_nav.dart';
+import '../common/composer_autocomplete_field.dart';
+import '../common/key_signature_picker.dart';
 import '../common/pdf_thumbnail.dart';
 
 enum _ViewMode { grid, list }
@@ -770,11 +772,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   // ── Edit dialog ─────────────────────────────────────────────────────────────
 
-  static const _keySignatures = [
-    'C', 'C#', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B',
-    'Cm', 'C#m', 'Dm', 'Ebm', 'Em', 'Fm', 'F#m', 'Gm', 'Abm', 'Am', 'Bbm', 'Bm',
-  ];
-
   static const _instruments = [
     'Pianoforte', 'Organo', 'Chitarra', 'Chitarra Basso', 'Violino', 'Viola',
     'Violoncello', 'Contrabbasso', 'Flauto', 'Oboe', 'Clarinetto', 'Fagotto',
@@ -784,8 +781,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   Future<void> _showEditDialog(BuildContext context, Song song) async {
     final titleCtrl = TextEditingController(text: song.title);
-    final authorCtrl = TextEditingController(text: song.composerName ?? '');
     final bpmCtrl = TextEditingController(text: song.bpm != null ? '${song.bpm}' : '');
+
+    String? authorName = song.composerName;
+    String? albumName = song.album;
+    String? selectedPeriod = song.period;
     String? selectedKey = song.keySignature;
     String? selectedInstrument = song.instrument;
 
@@ -796,64 +796,77 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           builder: (ctx, setDialogState) => AlertDialog(
             title: const Text('Modifica dettagli'),
             content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: titleCtrl,
-                    decoration: const InputDecoration(labelText: 'Titolo'),
-                    autofocus: true,
-                    textCapitalization: TextCapitalization.sentences,
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: authorCtrl,
-                    decoration: const InputDecoration(labelText: 'Autore (opzionale)'),
-                    textCapitalization: TextCapitalization.words,
-                  ),
-                  const SizedBox(height: 12),
-                  Builder(builder: (ctx) {
-                    final locale = Localizations.localeOf(ctx);
-                    final keyItems = KeySignatureLocalization.items(locale);
-                    return DropdownButtonFormField<String>(
-                      value: selectedKey,
-                      decoration: const InputDecoration(labelText: 'Tonalità'),
+              child: SizedBox(
+                width: 380,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextField(
+                      controller: titleCtrl,
+                      decoration: const InputDecoration(labelText: 'Titolo'),
+                      autofocus: true,
+                      textCapitalization: TextCapitalization.sentences,
+                    ),
+                    const SizedBox(height: 12),
+                    ComposerAutocompleteField(
+                      initialValue: authorName,
+                      onChanged: (v) => authorName = v,
+                      label: 'Autore (opzionale)',
+                    ),
+                    const SizedBox(height: 12),
+                    AlbumAutocompleteField(
+                      initialValue: albumName,
+                      onChanged: (v) => albumName = v,
+                      label: 'Album / Raccolta (opzionale)',
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: selectedPeriod,
+                      decoration: const InputDecoration(
+                          labelText: 'Periodo / Genere (opzionale)'),
                       isExpanded: true,
                       items: [
                         const DropdownMenuItem(
                             value: null,
-                            child: Text('Nessuna',
+                            child: Text('Nessuno',
                                 style: TextStyle(color: Colors.grey))),
-                        ...keyItems.map((item) => DropdownMenuItem(
-                            value: item.stored, child: Text(item.label))),
+                        ...AppConstants.musicalPeriods.map((p) =>
+                            DropdownMenuItem(value: p, child: Text(p))),
                       ],
                       onChanged: (v) =>
+                          setDialogState(() => selectedPeriod = v),
+                    ),
+                    const SizedBox(height: 16),
+                    KeySignaturePicker(
+                      value: selectedKey,
+                      onChanged: (v) =>
                           setDialogState(() => selectedKey = v),
-                    );
-                  }),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: bpmCtrl,
-                    decoration: const InputDecoration(labelText: 'BPM (opzionale)'),
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    value: selectedInstrument,
-                    decoration: const InputDecoration(labelText: 'Strumento'),
-                    isExpanded: true,
-                    items: [
-                      const DropdownMenuItem(
-                          value: null,
-                          child: Text('Nessuno',
-                              style: TextStyle(color: Colors.grey))),
-                      ..._instruments.map((s) =>
-                          DropdownMenuItem(value: s, child: Text(s))),
-                    ],
-                    onChanged: (v) =>
-                        setDialogState(() => selectedInstrument = v),
-                  ),
-                ],
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: bpmCtrl,
+                      decoration: const InputDecoration(labelText: 'BPM (opzionale)'),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: selectedInstrument,
+                      decoration: const InputDecoration(labelText: 'Strumento'),
+                      isExpanded: true,
+                      items: [
+                        const DropdownMenuItem(
+                            value: null,
+                            child: Text('Nessuno',
+                                style: TextStyle(color: Colors.grey))),
+                        ..._instruments.map((s) =>
+                            DropdownMenuItem(value: s, child: Text(s))),
+                      ],
+                      onChanged: (v) =>
+                          setDialogState(() => selectedInstrument = v),
+                    ),
+                  ],
+                ),
               ),
             ),
             actions: [
@@ -870,7 +883,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       if (confirmed != true || !context.mounted) return;
 
       final newTitle = titleCtrl.text.trim().isEmpty ? song.title : titleCtrl.text.trim();
-      final newAuthor = authorCtrl.text.trim().isEmpty ? null : authorCtrl.text.trim();
+      final newAuthor =
+          (authorName?.trim().isEmpty ?? true) ? null : authorName!.trim();
+      final newAlbum =
+          (albumName?.trim().isEmpty ?? true) ? null : albumName!.trim();
       final newBpm = int.tryParse(bpmCtrl.text.trim());
 
       int? composerId;
@@ -890,12 +906,15 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         clearBpm: newBpm == null,
         instrument: selectedInstrument,
         clearInstrument: selectedInstrument == null,
+        album: newAlbum,
+        clearAlbum: newAlbum == null,
+        period: selectedPeriod,
+        clearPeriod: selectedPeriod == null,
         updatedAt: DateTime.now(),
       ));
       ref.invalidate(songsProvider);
     } finally {
       titleCtrl.dispose();
-      authorCtrl.dispose();
       bpmCtrl.dispose();
     }
   }
@@ -1388,7 +1407,7 @@ class _ImportDetailsDialog extends ConsumerStatefulWidget {
 class _ImportDetailsDialogState extends ConsumerState<_ImportDetailsDialog> {
   int _step = 0;
   late final TextEditingController _titleCtrl;
-  final _authorCtrl = TextEditingController();
+  String? _authorName;
   List<Setlist> _setlists = [];
   final Set<int> _selectedSetlistIds = {};
   bool _loadingSetlists = true;
@@ -1407,7 +1426,6 @@ class _ImportDetailsDialogState extends ConsumerState<_ImportDetailsDialog> {
   @override
   void dispose() {
     _titleCtrl.dispose();
-    _authorCtrl.dispose();
     super.dispose();
   }
 
@@ -1457,8 +1475,9 @@ class _ImportDetailsDialogState extends ConsumerState<_ImportDetailsDialog> {
     final title = _titleCtrl.text.trim().isEmpty
         ? widget.defaultTitle
         : _titleCtrl.text.trim();
-    final author =
-        _authorCtrl.text.trim().isEmpty ? null : _authorCtrl.text.trim();
+    final author = (_authorName?.trim().isEmpty ?? true)
+        ? null
+        : _authorName!.trim();
     Navigator.of(context).pop(_ImportResult(
       title: title,
       authorName: author,
@@ -1487,23 +1506,25 @@ class _ImportDetailsDialogState extends ConsumerState<_ImportDetailsDialog> {
     );
   }
 
-  Widget _buildStep0() => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _titleCtrl,
-            decoration: const InputDecoration(labelText: 'Titolo'),
-            autofocus: true,
-            textCapitalization: TextCapitalization.sentences,
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _authorCtrl,
-            decoration:
-                const InputDecoration(labelText: 'Autore (opzionale)'),
-            textCapitalization: TextCapitalization.words,
-          ),
-        ],
+  Widget _buildStep0() => SizedBox(
+        width: 360,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _titleCtrl,
+              decoration: const InputDecoration(labelText: 'Titolo'),
+              autofocus: true,
+              textCapitalization: TextCapitalization.sentences,
+            ),
+            const SizedBox(height: 12),
+            ComposerAutocompleteField(
+              initialValue: _authorName,
+              onChanged: (v) => _authorName = v,
+              label: 'Autore (opzionale)',
+            ),
+          ],
+        ),
       );
 
   Widget _buildStep1() {

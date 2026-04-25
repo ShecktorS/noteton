@@ -62,6 +62,23 @@ final composersProvider = FutureProvider<List<Composer>>((ref) async {
   return ref.read(composerRepositoryProvider).getAll();
 });
 
+/// Suggerimenti compositori per autocomplete autore (≥ 2 caratteri).
+/// autoDispose: la cache si scarta appena il widget esce dallo scope.
+final composerSuggestionsProvider =
+    FutureProvider.autoDispose.family<List<Composer>, String>(
+        (ref, prefix) async {
+  if (prefix.length < 2) return const [];
+  return ref.read(composerRepositoryProvider).findByPrefix(prefix);
+});
+
+/// Suggerimenti album per autocomplete (≥ 2 caratteri).
+final albumSuggestionsProvider =
+    FutureProvider.autoDispose.family<List<String>, String>(
+        (ref, prefix) async {
+  if (prefix.length < 2) return const [];
+  return ref.read(songRepositoryProvider).findAlbumsByPrefix(prefix);
+});
+
 // Collections
 final collectionsProvider = FutureProvider<List<Collection>>((ref) async {
   return ref.read(collectionRepositoryProvider).getAll();

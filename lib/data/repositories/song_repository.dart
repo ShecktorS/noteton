@@ -23,8 +23,15 @@ class SongRepository {
 
     if (searchQuery != null && searchQuery.isNotEmpty) {
       conditions.add(
-          '(s.title LIKE ? OR c.name LIKE ? OR s.key_signature LIKE ?)');
-      args.addAll(['%$searchQuery%', '%$searchQuery%', '%$searchQuery%']);
+          '(s.title LIKE ? OR c.name LIKE ? OR s.key_signature LIKE ? '
+          'OR s.album LIKE ? OR s.period LIKE ?)');
+      args.addAll([
+        '%$searchQuery%',
+        '%$searchQuery%',
+        '%$searchQuery%',
+        '%$searchQuery%',
+        '%$searchQuery%',
+      ]);
     }
 
     if (tagId != null) {
@@ -151,6 +158,29 @@ class SongRepository {
         if (await tombstone.exists()) await tombstone.delete();
       } catch (_) {}
     }
+  }
+
+  /// Restituisce album distinti già usati nei brani il cui nome inizia
+  /// con [prefix] (case-insensitive). Per l'autocomplete album.
+  Future<List<String>> findAlbumsByPrefix(String prefix,
+      {int limit = 8}) async {
+    if (prefix.isEmpty) return const [];
+    final db = await _db;
+    final rows = await db.rawQuery(
+      '''
+      SELECT DISTINCT album FROM songs
+      WHERE album IS NOT NULL
+        AND album != ''
+        AND LOWER(album) LIKE ?
+      ORDER BY album ASC
+      LIMIT ?
+      ''',
+      ['${prefix.toLowerCase()}%', limit],
+    );
+    return rows
+        .map((r) => r['album'] as String)
+        .where((a) => a.isNotEmpty)
+        .toList();
   }
 
   /// Returns the song whose PDF has the given SHA-256 hash, or null.

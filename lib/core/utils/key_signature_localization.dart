@@ -53,4 +53,44 @@ class KeySignatureLocalization {
         .map((v) => (stored: v, label: display(v, locale)))
         .toList();
   }
+
+  // ── Split / Join per il picker "Modo + Nota" ─────────────────────────────
+  //
+  // Il KeySignaturePicker mostra due selettori indipendenti:
+  //   • Modo: maggiore / minore
+  //   • Nota: una delle 14 note distinte presenti nelle tonalità maggiori
+  //
+  // Il DB continua a memorizzare la stringa singola ('C', 'C#m', ...).
+  // Questi helper convertono fra le due rappresentazioni.
+
+  /// Note distinte usate dal picker, in ordine di lettura "circolo":
+  /// Do, Do♯, Re♭, Re, Mi♭, Mi, Fa, Fa♯, Sol♭, Sol, La♭, La, Si♭, Si.
+  /// Ogni elemento è la rappresentazione "nota" in notazione inglese
+  /// (senza la 'm' del modo minore).
+  static const List<String> notesEnglish = [
+    'C', 'C#', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B',
+  ];
+
+  /// Estrae (nota, modoMinore) da una stringa storage tipo 'C', 'Cm', 'F#m'.
+  /// Ritorna null se la stringa non è una tonalità riconosciuta.
+  static ({String note, bool isMinor})? splitKey(String? stored) {
+    if (stored == null || stored.isEmpty) return null;
+    final isMinor = stored.endsWith('m');
+    final note = isMinor ? stored.substring(0, stored.length - 1) : stored;
+    if (!notesEnglish.contains(note)) return null;
+    return (note: note, isMinor: isMinor);
+  }
+
+  /// Compone la stringa storage da nota e modo.
+  /// Esempio: joinKey('F#', isMinor: true) → 'F#m'.
+  static String joinKey(String note, {required bool isMinor}) {
+    return isMinor ? '${note}m' : note;
+  }
+
+  /// Etichetta breve della nota nella locale fornita
+  /// (es. 'C' → 'Do', 'F#' → 'Fa♯' in italiano).
+  static String displayNote(String note, Locale locale) {
+    if (locale.languageCode != 'it') return note;
+    return _enToIt[note] ?? note;
+  }
 }

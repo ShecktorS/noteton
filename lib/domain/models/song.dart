@@ -61,6 +61,8 @@ class Song {
   final String? keySignature;
   final int? bpm;
   final String? instrument;
+  final String? album;
+  final String? period;
   final String? fileHash; // SHA-256 of the PDF file — used for duplicate detection
 
   // Optional joined data (not stored in songs table directly)
@@ -80,6 +82,8 @@ class Song {
     this.keySignature,
     this.bpm,
     this.instrument,
+    this.album,
+    this.period,
     this.fileHash,
     this.composerName,
     this.tags = const [],
@@ -99,6 +103,8 @@ class Song {
       keySignature: map['key_signature'] as String?,
       bpm: map['bpm'] as int?,
       instrument: map['instrument'] as String?,
+      album: map['album'] as String?,
+      period: map['period'] as String?,
       fileHash: map['file_hash'] as String?,
       composerName: map['composer_name'] as String?,
     );
@@ -118,6 +124,8 @@ class Song {
       'key_signature': keySignature,
       'bpm': bpm,
       'instrument': instrument,
+      'album': album,
+      'period': period,
       'file_hash': fileHash,
     };
   }
@@ -135,6 +143,8 @@ class Song {
     String? keySignature,
     int? bpm,
     String? instrument,
+    String? album,
+    String? period,
     String? fileHash,
     String? composerName,
     List<String>? tags,
@@ -142,6 +152,8 @@ class Song {
     bool clearKeySignature = false,
     bool clearBpm = false,
     bool clearInstrument = false,
+    bool clearAlbum = false,
+    bool clearPeriod = false,
     bool clearComposerId = false,
   }) {
     return Song(
@@ -157,6 +169,8 @@ class Song {
       keySignature: clearKeySignature ? null : keySignature ?? this.keySignature,
       bpm: clearBpm ? null : bpm ?? this.bpm,
       instrument: clearInstrument ? null : instrument ?? this.instrument,
+      album: clearAlbum ? null : album ?? this.album,
+      period: clearPeriod ? null : period ?? this.period,
       fileHash: fileHash ?? this.fileHash,
       composerName: composerName ?? this.composerName,
       tags: tags ?? this.tags,

@@ -50,6 +50,21 @@ class ComposerRepository {
     return Composer.fromMap(rows.first);
   }
 
+  /// Cerca compositori il cui nome inizia con [prefix] (case-insensitive).
+  /// Usato dall'autocomplete: richiamato a ogni keystroke ≥ 2 caratteri.
+  Future<List<Composer>> findByPrefix(String prefix, {int limit = 8}) async {
+    if (prefix.isEmpty) return const [];
+    final db = await _db;
+    final rows = await db.query(
+      'composers',
+      where: 'LOWER(name) LIKE ?',
+      whereArgs: ['${prefix.toLowerCase()}%'],
+      orderBy: 'name ASC',
+      limit: limit,
+    );
+    return rows.map(Composer.fromMap).toList();
+  }
+
   Future<Composer> findOrCreate(String name) async {
     final existing = await findByName(name);
     if (existing != null) return existing;
