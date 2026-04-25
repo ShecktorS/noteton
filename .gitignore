@@ -70,3 +70,15 @@ node_modules/
 package.json
 package-lock.json
 flutter_01.png
+flutter_02.png
+flutter_03.png
+
+# Tools / scripts non distribuiti
+tools/
+
+# Piattaforme cross-platform non target (rigenerate automaticamente da Flutter
+# se servono in locale, ma non vogliamo committarle: il target e' solo Android)
+/windows/
+/linux/
+/macos/
+/web/
