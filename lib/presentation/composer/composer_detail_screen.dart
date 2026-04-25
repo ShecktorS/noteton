@@ -10,12 +10,12 @@ import '../../providers/providers.dart';
 import '../common/pdf_thumbnail.dart';
 
 final _composerSongsProvider =
-    FutureProvider.family<List<Song>, int>((ref, composerId) async {
+    FutureProvider.autoDispose.family<List<Song>, int>((ref, composerId) async {
   return ref.read(songRepositoryProvider).getByComposerId(composerId);
 });
 
 final _composerByIdProvider =
-    FutureProvider.family<Composer?, int>((ref, composerId) async {
+    FutureProvider.autoDispose.family<Composer?, int>((ref, composerId) async {
   return ref.read(composerRepositoryProvider).getById(composerId);
 });
 
