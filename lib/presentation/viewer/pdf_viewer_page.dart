@@ -29,6 +29,8 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
   int _currentPage = 1;
   int _totalPages = 0;
   bool _appBarVisible = true;
+  Timer? _appBarHideTimer;
+  static const _autoHideDuration = Duration(seconds: 3);
   bool _standMode = false;
   Song? _songCache;
 
@@ -50,6 +52,17 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
   void initState() {
     super.initState();
     _initPdf();
+    _scheduleHide();
+  }
+
+  void _scheduleHide() {
+    _appBarHideTimer?.cancel();
+    if (!_appBarVisible || _drawingMode) return;
+    _appBarHideTimer = Timer(_autoHideDuration, () {
+      if (mounted && !_drawingMode) {
+        setState(() => _appBarVisible = false);
+      }
+    });
   }
 
   Future<void> _initPdf() async {
@@ -136,6 +149,7 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
 
   @override
   void dispose() {
+    _appBarHideTimer?.cancel();
     if (_standMode) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     }
@@ -143,9 +157,22 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
     super.dispose();
   }
 
-  void _toggleAppBar() => setState(() => _appBarVisible = !_appBarVisible);
-  void _toggleDrawingMode() =>
-      setState(() => _drawingMode = !_drawingMode);
+  void _toggleAppBar() {
+    setState(() => _appBarVisible = !_appBarVisible);
+    if (_appBarVisible) {
+      _scheduleHide();
+    } else {
+      _appBarHideTimer?.cancel();
+    }
+  }
+  void _toggleDrawingMode() {
+    setState(() => _drawingMode = !_drawingMode);
+    if (_drawingMode) {
+      _appBarHideTimer?.cancel(); // tieni i controlli visibili durante drawing
+    } else {
+      _scheduleHide();
+    }
+  }
 
   void _previousPage() {
     if (_currentPage > 1) {

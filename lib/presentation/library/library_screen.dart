@@ -791,94 +791,141 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     String? selectedInstrument = song.instrument;
 
     try {
-      final confirmed = await showDialog<bool>(
+      final confirmed = await showModalBottomSheet<bool>(
         context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
         builder: (ctx) => StatefulBuilder(
-          builder: (ctx, setDialogState) => AlertDialog(
-            title: const Text('Modifica dettagli'),
-            content: SingleChildScrollView(
-              child: SizedBox(
-                width: 380,
+          builder: (ctx, setDialogState) {
+            final theme = Theme.of(ctx);
+            return DraggableScrollableSheet(
+              initialChildSize: 0.85,
+              minChildSize: 0.55,
+              maxChildSize: 0.95,
+              expand: false,
+              builder: (ctx, scrollCtrl) => Container(
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(28)),
+                ),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    TextField(
-                      controller: titleCtrl,
-                      decoration: const InputDecoration(labelText: 'Titolo'),
-                      autofocus: true,
-                      textCapitalization: TextCapitalization.sentences,
+                    // Drag handle
+                    Container(
+                      margin: const EdgeInsets.only(top: 10),
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.outlineVariant,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
-                    const SizedBox(height: 12),
-                    ComposerAutocompleteField(
-                      initialValue: authorName,
-                      onChanged: (v) => authorName = v,
-                      label: 'Autore (opzionale)',
+                    // Header sticky con titolo + Salva
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 12, 8),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text('Modifica dettagli',
+                                style: theme.textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w600)),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: const Text('Annulla'),
+                          ),
+                          FilledButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: const Text('Salva'),
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 12),
-                    AlbumAutocompleteField(
-                      initialValue: albumName,
-                      onChanged: (v) => albumName = v,
-                      label: 'Album / Raccolta (opzionale)',
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      value: selectedPeriod,
-                      decoration: const InputDecoration(
-                          labelText: 'Periodo / Genere (opzionale)'),
-                      isExpanded: true,
-                      items: [
-                        const DropdownMenuItem(
-                            value: null,
-                            child: Text('Nessuno',
-                                style: TextStyle(color: Colors.grey))),
-                        ...AppConstants.musicalPeriods.map((p) =>
-                            DropdownMenuItem(value: p, child: Text(p))),
-                      ],
-                      onChanged: (v) =>
-                          setDialogState(() => selectedPeriod = v),
-                    ),
-                    const SizedBox(height: 16),
-                    KeySignaturePicker(
-                      value: selectedKey,
-                      onChanged: (v) =>
-                          setDialogState(() => selectedKey = v),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: bpmCtrl,
-                      decoration: const InputDecoration(labelText: 'BPM (opzionale)'),
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      value: selectedInstrument,
-                      decoration: const InputDecoration(labelText: 'Strumento'),
-                      isExpanded: true,
-                      items: [
-                        const DropdownMenuItem(
-                            value: null,
-                            child: Text('Nessuno',
-                                style: TextStyle(color: Colors.grey))),
-                        ..._instruments.map((s) =>
-                            DropdownMenuItem(value: s, child: Text(s))),
-                      ],
-                      onChanged: (v) =>
-                          setDialogState(() => selectedInstrument = v),
+                    const Divider(height: 1),
+                    Expanded(
+                      child: ListView(
+                        controller: scrollCtrl,
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                        children: [
+                          TextField(
+                            controller: titleCtrl,
+                            decoration: const InputDecoration(
+                                labelText: 'Titolo'),
+                            autofocus: false,
+                            textCapitalization:
+                                TextCapitalization.sentences,
+                          ),
+                          const SizedBox(height: 14),
+                          ComposerAutocompleteField(
+                            initialValue: authorName,
+                            onChanged: (v) => authorName = v,
+                            label: 'Autore (opzionale)',
+                          ),
+                          const SizedBox(height: 14),
+                          AlbumAutocompleteField(
+                            initialValue: albumName,
+                            onChanged: (v) => albumName = v,
+                            label: 'Album / Raccolta (opzionale)',
+                          ),
+                          const SizedBox(height: 14),
+                          DropdownButtonFormField<String>(
+                            value: selectedPeriod,
+                            decoration: const InputDecoration(
+                                labelText:
+                                    'Periodo / Genere (opzionale)'),
+                            isExpanded: true,
+                            items: [
+                              const DropdownMenuItem(
+                                  value: null,
+                                  child: Text('Nessuno',
+                                      style: TextStyle(color: Colors.grey))),
+                              ...AppConstants.musicalPeriods.map((p) =>
+                                  DropdownMenuItem(
+                                      value: p, child: Text(p))),
+                            ],
+                            onChanged: (v) =>
+                                setDialogState(() => selectedPeriod = v),
+                          ),
+                          const SizedBox(height: 18),
+                          KeySignaturePicker(
+                            value: selectedKey,
+                            onChanged: (v) =>
+                                setDialogState(() => selectedKey = v),
+                          ),
+                          const SizedBox(height: 18),
+                          TextField(
+                            controller: bpmCtrl,
+                            decoration: const InputDecoration(
+                                labelText: 'BPM (opzionale)'),
+                            keyboardType: TextInputType.number,
+                          ),
+                          const SizedBox(height: 14),
+                          DropdownButtonFormField<String>(
+                            value: selectedInstrument,
+                            decoration: const InputDecoration(
+                                labelText: 'Strumento'),
+                            isExpanded: true,
+                            items: [
+                              const DropdownMenuItem(
+                                  value: null,
+                                  child: Text('Nessuno',
+                                      style: TextStyle(color: Colors.grey))),
+                              ..._instruments.map((s) =>
+                                  DropdownMenuItem(
+                                      value: s, child: Text(s))),
+                            ],
+                            onChanged: (v) => setDialogState(
+                                () => selectedInstrument = v),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
-            ),
-            actions: [
-              TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('Annulla')),
-              FilledButton(
-                  onPressed: () => Navigator.pop(ctx, true),
-                  child: const Text('Salva')),
-            ],
-          ),
+            );
+          },
         ),
       );
       if (confirmed != true || !context.mounted) return;
@@ -1297,27 +1344,48 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                         Navigator.pop(ctx);
                       },
                     ),
-                    ...tags.map((tag) {
-                      final tagColor = _parseTagColor(tag.color as String);
-                      return ListTile(
-                        leading: Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                              color: tagColor, shape: BoxShape.circle),
-                        ),
-                        title: Text(tag.name as String),
-                        trailing: localTagId == (tag.id as int?)
-                            ? Icon(Icons.check,
-                                color: Theme.of(ctx).colorScheme.primary,
-                                size: 18)
-                            : null,
-                        onTap: () {
-                          setSheetState(() => localTagId = tag.id as int?);
-                          ref.read(tagFilterProvider.notifier).state =
-                              tag.id as int?;
-                          Navigator.pop(ctx);
-                        },
+                    Consumer(builder: (consumerCtx, consumerRef, _) {
+                      final countsAsync =
+                          consumerRef.watch(tagCountsProvider);
+                      final counts = countsAsync.valueOrNull ?? const {};
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: tags.map((tag) {
+                          final tagColor =
+                              _parseTagColor(tag.color as String);
+                          final tagId = tag.id as int?;
+                          final count = counts[tagId] ?? 0;
+                          final selected = localTagId == tagId;
+                          return ListTile(
+                            leading: Container(
+                              width: 14,
+                              height: 14,
+                              decoration: BoxDecoration(
+                                  color: tagColor, shape: BoxShape.circle),
+                            ),
+                            title: Text(tag.name as String),
+                            subtitle: Text(
+                                count == 1 ? '1 brano' : '$count brani',
+                                style: Theme.of(ctx)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                        color: Theme.of(ctx)
+                                            .colorScheme
+                                            .outline)),
+                            trailing: selected
+                                ? Icon(Icons.check,
+                                    color: Theme.of(ctx).colorScheme.primary,
+                                    size: 20)
+                                : null,
+                            onTap: () {
+                              setSheetState(() => localTagId = tagId);
+                              ref.read(tagFilterProvider.notifier).state =
+                                  tagId;
+                              Navigator.pop(ctx);
+                            },
+                          );
+                        }).toList(),
                       );
                     }),
                   ],

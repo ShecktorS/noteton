@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,6 +35,8 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
   int _currentPage = 1;
   int _totalPages = 0;
   bool _appBarVisible = true;
+  Timer? _appBarHideTimer;
+  static const _autoHideDuration = Duration(seconds: 3);
 
   // Flash visivo per le zone tap
   bool _leftFlash = false;
@@ -43,13 +47,25 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
     super.initState();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     _loadSetlist();
+    _scheduleHide();
   }
 
   @override
   void dispose() {
+    _appBarHideTimer?.cancel();
     _pdfController?.dispose();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
+  }
+
+  /// Programma l'auto-hide della AppBar dopo [_autoHideDuration].
+  /// Annulla l'eventuale timer precedente.
+  void _scheduleHide() {
+    _appBarHideTimer?.cancel();
+    if (!_appBarVisible) return;
+    _appBarHideTimer = Timer(_autoHideDuration, () {
+      if (mounted) setState(() => _appBarVisible = false);
+    });
   }
 
   Future<void> _loadSetlist() async {
@@ -145,7 +161,14 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
     }
   }
 
-  void _toggleAppBar() => setState(() => _appBarVisible = !_appBarVisible);
+  void _toggleAppBar() {
+    setState(() => _appBarVisible = !_appBarVisible);
+    if (_appBarVisible) {
+      _scheduleHide();
+    } else {
+      _appBarHideTimer?.cancel();
+    }
+  }
 
   void _onPageChanged(int page) {
     setState(() => _currentPage = page);

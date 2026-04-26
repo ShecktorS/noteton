@@ -46,6 +46,22 @@ final tagsProvider = FutureProvider<List<Tag>>((ref) async {
   return ref.read(tagRepositoryProvider).getAll();
 });
 
+/// Conteggio brani per ogni tag — usato dal filtro tag in libreria.
+/// Mappa tagId → count. Si rinfresca quando songs/tags cambiano.
+final tagCountsProvider = FutureProvider<Map<int, int>>((ref) async {
+  ref.watch(songsProvider((query: null, tagId: null)));
+  ref.watch(tagsProvider);
+  final db = await DatabaseHelper.instance.database;
+  final rows = await db.rawQuery('''
+    SELECT tag_id, COUNT(*) as cnt
+    FROM song_tags
+    GROUP BY tag_id
+  ''');
+  return {
+    for (final r in rows) r['tag_id'] as int: r['cnt'] as int,
+  };
+});
+
 final songTagsProvider = FutureProvider.family<List<Tag>, int>(
     (ref, songId) async {
   return ref.read(tagRepositoryProvider).getTagsForSong(songId);
