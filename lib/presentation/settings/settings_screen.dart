@@ -13,6 +13,7 @@ import '../../providers/providers.dart';
 import '../common/app_bottom_nav.dart';
 import 'auto_update_screen.dart';
 import 'diagnostic_screen.dart';
+import 'widgets/library_stats_card.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -409,7 +410,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: Stack(
         children: [
           ListView(
+            padding: const EdgeInsets.only(bottom: 24),
             children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
+                child: LibraryStatsCard(),
+              ),
+              const SizedBox(height: 8),
               const _SectionHeader('Aspetto'),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

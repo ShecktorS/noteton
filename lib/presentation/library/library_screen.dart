@@ -24,6 +24,7 @@ import '../../providers/providers.dart';
 import '../common/album_autocomplete_field.dart';
 import '../common/app_bottom_nav.dart';
 import '../common/composer_autocomplete_field.dart';
+import '../common/global_search_sheet.dart';
 import '../common/key_signature_picker.dart';
 import '../common/pdf_thumbnail.dart';
 
@@ -1203,7 +1204,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 
   void _showSearch(BuildContext context) {
-    showSearch(context: context, delegate: _SongSearchDelegate(ref));
+    showGlobalSearchSheet(context);
   }
 
   // ── Filter menu (status + tag) ───────────────────────────────────────────────
@@ -1608,6 +1609,7 @@ class _SongGridCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Stack(
       children: [
         Card(
@@ -1619,13 +1621,65 @@ class _SongGridCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: PdfThumbnailExpanded(
-                    key: ValueKey(song.filePath),
-                    filePath: song.filePath,
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: PdfThumbnailExpanded(
+                          key: ValueKey(song.filePath),
+                          filePath: song.filePath,
+                        ),
+                      ),
+                      // Status dot (in alto a sinistra)
+                      if (song.status != SongStatus.none)
+                        Positioned(
+                          top: 8,
+                          left: 8,
+                          child: Tooltip(
+                            message: song.status.label,
+                            child: Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: song.status.color,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.4),
+                                    blurRadius: 3,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      // Tonalità pill (in basso a destra sulla thumbnail)
+                      if (song.keySignature != null)
+                        Positioned(
+                          bottom: 6,
+                          right: 6,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.65),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              KeySignatureLocalization.display(
+                                  song.keySignature!,
+                                  Localizations.localeOf(context)),
+                              style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -1633,11 +1687,10 @@ class _SongGridCard extends StatelessWidget {
                         song.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(fontWeight: FontWeight.bold),
+                        style: theme.textTheme.bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.w600, height: 1.2),
                       ),
+                      const SizedBox(height: 2),
                       if (song.composerName != null)
                         GestureDetector(
                           onTap: () =>
@@ -1646,41 +1699,24 @@ class _SongGridCard extends StatelessWidget {
                             song.composerName!,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                  color:
-                                      Theme.of(context).colorScheme.primary,
-                                  decoration: TextDecoration.underline,
-                                ),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.outline,
+                            ),
                           ),
                         ),
-                      if (song.totalPages > 0)
-                        Text(
-                          song.lastPage > 0
-                              ? 'Pag. ${song.lastPage} / ${song.totalPages}'
-                              : '${song.totalPages} pag.',
-                          style: TextStyle(
-                              fontSize: 10,
-                              color: Theme.of(context).colorScheme.primary),
-                        ),
-                      if (song.status != SongStatus.none || song.keySignature != null)
+                      if (song.totalPages > 0 && song.lastPage > 0)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
-                          child: Wrap(
-                            spacing: 4,
-                            runSpacing: 2,
-                            children: [
-                              if (song.status != SongStatus.none)
-                                _MetaBadge(label: song.status.label, color: song.status.color),
-                              if (song.keySignature != null)
-                                _MetaBadge(
-                                    label: KeySignatureLocalization.display(
-                                        song.keySignature!,
-                                        Localizations.localeOf(context)),
-                                    color: const Color(0xFF4A90D9)),
-                            ],
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(2),
+                            child: LinearProgressIndicator(
+                              value: song.lastPage / song.totalPages,
+                              minHeight: 2,
+                              backgroundColor:
+                                  theme.colorScheme.surfaceContainerHighest,
+                              valueColor: AlwaysStoppedAnimation(
+                                  theme.colorScheme.primary),
+                            ),
                           ),
                         ),
                     ],
@@ -1703,11 +1739,11 @@ class _SongGridCard extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: Colors.black54,
+                    color: Colors.black.withValues(alpha: 0.55),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Icon(Icons.more_vert,
-                      size: 22, color: Colors.white),
+                      size: 20, color: Colors.white),
                 ),
               ),
             ),
@@ -1718,13 +1754,13 @@ class _SongGridCard extends StatelessWidget {
             top: 8,
             right: 8,
             child: Container(
-              width: 24,
-              height: 24,
+              width: 26,
+              height: 26,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: isSelected
                     ? Theme.of(context).colorScheme.primary
-                    : Colors.white.withOpacity(0.85),
+                    : Colors.white.withValues(alpha: 0.85),
                 border: Border.all(
                   color: isSelected
                       ? Theme.of(context).colorScheme.primary

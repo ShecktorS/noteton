@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite/sqflite.dart';
 import '../core/services/metronome_service.dart';
 import '../core/services/update_service.dart';
+import '../data/database/database_helper.dart';
 import '../data/repositories/song_repository.dart';
 import '../data/repositories/setlist_repository.dart';
 import '../data/repositories/composer_repository.dart';
@@ -15,6 +17,7 @@ import '../domain/models/setlist.dart';
 import '../domain/models/setlist_item.dart';
 import '../domain/models/composer.dart';
 import '../domain/models/collection.dart';
+import '../domain/models/library_stats.dart';
 import '../domain/models/release_info.dart';
 import '../domain/models/tag.dart';
 
@@ -78,6 +81,69 @@ final albumSuggestionsProvider =
         (ref, prefix) async {
   if (prefix.length < 2) return const [];
   return ref.read(songRepositoryProvider).findAlbumsByPrefix(prefix);
+});
+
+/// Statistiche aggregate della libreria — usato dalla card "La tua libreria"
+/// in Settings. Si invalida quando songs/setlists/collections cambiano.
+final libraryStatsProvider = FutureProvider<LibraryStats>((ref) async {
+  // Dipendiamo dai dataset principali così la card si aggiorna sui cambi.
+  ref.watch(songsProvider((query: null, tagId: null)));
+  ref.watch(setlistsProvider);
+  ref.watch(collectionsProvider);
+  ref.watch(composersProvider);
+  ref.watch(tagsProvider);
+
+  final db = await DatabaseHelper.instance.database;
+
+  final totalSongs = Sqflite.firstIntValue(
+          await db.rawQuery('SELECT COUNT(*) FROM songs')) ??
+      0;
+  final totalComposers = Sqflite.firstIntValue(
+          await db.rawQuery('SELECT COUNT(*) FROM composers')) ??
+      0;
+  final totalSetlists = Sqflite.firstIntValue(
+          await db.rawQuery('SELECT COUNT(*) FROM setlists')) ??
+      0;
+  final totalCollections = Sqflite.firstIntValue(
+          await db.rawQuery('SELECT COUNT(*) FROM collections')) ??
+      0;
+  final totalTags =
+      Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM tags')) ??
+          0;
+
+  final keyRows = await db.rawQuery('''
+    SELECT key_signature, COUNT(*) as cnt
+    FROM songs
+    WHERE key_signature IS NOT NULL AND key_signature != ''
+    GROUP BY key_signature
+    ORDER BY cnt DESC
+    LIMIT 5
+  ''');
+  final topKeys = keyRows
+      .map((r) =>
+          (key: r['key_signature'] as String, count: r['cnt'] as int))
+      .toList();
+
+  final periodRows = await db.rawQuery('''
+    SELECT period, COUNT(*) as cnt
+    FROM songs
+    WHERE period IS NOT NULL AND period != ''
+    GROUP BY period
+    ORDER BY cnt DESC
+  ''');
+  final periodDistribution = periodRows
+      .map((r) => (period: r['period'] as String, count: r['cnt'] as int))
+      .toList();
+
+  return LibraryStats(
+    totalSongs: totalSongs,
+    totalComposers: totalComposers,
+    totalSetlists: totalSetlists,
+    totalCollections: totalCollections,
+    totalTags: totalTags,
+    topKeys: topKeys,
+    periodDistribution: periodDistribution,
+  );
 });
 
 // Collections

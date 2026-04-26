@@ -2,7 +2,7 @@ class AppConstants {
   AppConstants._();
 
   static const String appName = 'Noteton';
-  static const String appVersion = '0.8.0';
+  static const String appVersion = '0.9.0';
   static const int databaseVersion = 7;
 
   // Periodi storici/generi musicali per organizzazione brani
@@ -35,16 +35,20 @@ class AppConstants {
   static const String routeSettings = '/settings';
   static const String routeSongDetail = '/song';
 
-  // Default tag colors
+  // Palette tag — sfumature pastello soft, leggibili sia in dark che in light.
+  // Sostituisce la vecchia palette Material satura.
   static const List<String> defaultTagColors = [
-    '#F44336', // red
-    '#E91E63', // pink
-    '#9C27B0', // purple
-    '#3F51B5', // indigo
-    '#2196F3', // blue
-    '#009688', // teal
-    '#4CAF50', // green
-    '#FF9800', // orange
-    '#607D8B', // blue-grey
+    '#E57373', // rosso pastello
+    '#F4A261', // arancio caldo
+    '#F4D35E', // giallo soft
+    '#A8D5A2', // verde salvia
+    '#7DCEA0', // menta
+    '#7FB3D5', // azzurro polvere
+    '#9FA8DA', // lavanda
+    '#C39BD3', // lilla
+    '#F1948A', // rosa antico
+    '#B0BEC5', // grigio bluastro
+    '#FFAB91', // pesca
+    '#80CBC4', // acqua
   ];
 }

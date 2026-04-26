@@ -93,8 +93,7 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: cs.surfaceContainerHighest, width: 1),
+          borderRadius: BorderRadius.circular(18),
         ),
         margin: EdgeInsets.zero,
       ),
@@ -131,10 +130,10 @@ class AppTheme {
         backgroundColor: cs.surfaceContainerLow,
         surfaceTintColor: Colors.transparent,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
         showDragHandle: true,
-        dragHandleColor: cs.onSurfaceVariant.withOpacity(0.4),
+        dragHandleColor: cs.onSurfaceVariant.withValues(alpha: 0.4),
         dragHandleSize: const Size(40, 4),
       ),
 
@@ -142,7 +141,7 @@ class AppTheme {
       dialogTheme: DialogThemeData(
         backgroundColor: cs.surfaceContainerHigh,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         titleTextStyle: TextStyle(
           color: cs.onSurface,
           fontSize: 20,
@@ -153,16 +152,16 @@ class AppTheme {
       // ── Chip ─────────────────────────────────────────────────────────────────
       chipTheme: ChipThemeData(
         backgroundColor: cs.surfaceContainerHighest,
-        labelStyle: TextStyle(color: cs.onSurface, fontSize: 12),
+        labelStyle: TextStyle(color: cs.onSurface, fontSize: 13),
         side: BorderSide.none,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       ),
 
       // ── ListTile ─────────────────────────────────────────────────────────────
       listTileTheme: ListTileThemeData(
         tileColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       ),
 
