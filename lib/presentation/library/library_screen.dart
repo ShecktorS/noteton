@@ -27,6 +27,7 @@ import '../common/composer_autocomplete_field.dart';
 import '../common/global_search_sheet.dart';
 import '../common/key_signature_picker.dart';
 import '../common/pdf_thumbnail.dart';
+import '../common/update_home_banner.dart';
 
 enum _ViewMode { grid, list }
 
@@ -219,10 +220,16 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 ),
               ],
             ),
-      body: songsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Errore: $e')),
-        data: (songs) {
+      body: Column(
+        children: [
+          // Card "aggiornamento disponibile" — visibile solo se update available
+          // + auto-update on + non dismessa in sessione. Auto-nascondibile.
+          const UpdateHomeBanner(),
+          Expanded(
+            child: songsAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('Errore: $e')),
+              data: (songs) {
           // Applica filtro status se attivo
           final statusFiltered = _statusFilter == null
               ? songs
@@ -263,7 +270,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               ),
             ],
           );
-        },
+              },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: _inSelectionMode
           ? null

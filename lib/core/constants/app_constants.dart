@@ -2,7 +2,7 @@ class AppConstants {
   AppConstants._();
 
   static const String appName = 'Noteton';
-  static const String appVersion = '0.9.1';
+  static const String appVersion = '0.10.0';
   static const int databaseVersion = 7;
 
   // Periodi storici/generi musicali per organizzazione brani

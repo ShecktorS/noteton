@@ -11,6 +11,7 @@ import '../data/repositories/composer_repository.dart';
 import '../data/repositories/collection_repository.dart';
 import '../data/repositories/backup_repository.dart';
 import '../data/repositories/annotation_repository.dart';
+import '../data/repositories/msb_import_repository.dart';
 import '../data/repositories/tag_repository.dart';
 import '../domain/models/song.dart';
 import '../domain/models/setlist.dart';
@@ -27,6 +28,8 @@ final setlistRepositoryProvider = Provider<SetlistRepository>((_) => SetlistRepo
 final composerRepositoryProvider = Provider<ComposerRepository>((_) => ComposerRepository());
 final collectionRepositoryProvider = Provider<CollectionRepository>((_) => CollectionRepository());
 final backupRepositoryProvider = Provider<BackupRepository>((_) => BackupRepository());
+final msbImportRepositoryProvider = Provider<MsbImportRepository>(
+    (ref) => MsbImportRepository(ref.read(backupRepositoryProvider)));
 final annotationRepositoryProvider = Provider<AnnotationRepository>((_) => AnnotationRepository());
 final tagRepositoryProvider = Provider<TagRepository>((_) => TagRepository());
 
@@ -354,6 +357,12 @@ final updateServiceProvider =
 /// chiama metodi di stato (start/stop/setBpm) come azioni.
 final metronomeServiceProvider = ChangeNotifierProvider<MetronomeService>(
     (_) => MetronomeService());
+
+/// Versioni di update il cui banner in home è stato dismesso solo per la
+/// sessione corrente (ricompariranno al prossimo lancio dell'app).
+/// Diverso da `_prefDismissed` in UpdateNotifier che è permanente.
+final dismissedBannerVersionsProvider =
+    StateProvider<Set<String>>((_) => <String>{});
 
 final updateProvider =
     StateNotifierProvider<UpdateNotifier, UpdateState>((ref) {

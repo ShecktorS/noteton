@@ -13,6 +13,7 @@ import '../../providers/providers.dart';
 import '../common/app_bottom_nav.dart';
 import 'auto_update_screen.dart';
 import 'diagnostic_screen.dart';
+import 'msb_import_screen.dart';
 import 'widgets/library_stats_card.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -339,69 +340,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  void _showMigrationGuide(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Migrazione da MobileSheets'),
-        content: const SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _MigrationStep(
-                number: '1',
-                title: 'Esporta il backup .msb da MobileSheets',
-                body:
-                    'Apri MobileSheets → Menu → Backup/Ripristino → '
-                    '"Crea backup". Il file generato ha estensione .msb '
-                    '(non è uno ZIP — è un formato proprietario).',
-              ),
-              SizedBox(height: 16),
-              _MigrationStep(
-                number: '2',
-                title: 'Converti su PC con msb2ntb',
-                body:
-                    'Copia il file .msb sul tuo PC. '
-                    'Scarica msb2ntb (disponibile su GitHub) ed eseguilo: '
-                    'trascina il file .msb sull\'icona di msb2ntb.exe '
-                    'oppure avvialo con doppio clic e inserisci il percorso '
-                    'quando richiesto. Viene creato un file .ntb con gli '
-                    'stessi PDF, titoli e autori.',
-              ),
-              SizedBox(height: 16),
-              _MigrationStep(
-                number: '3',
-                title: 'Copia il .ntb sul telefono',
-                body:
-                    'Trasferisci il file .ntb sul dispositivo Android '
-                    'tramite USB, Google Drive, Telegram o qualsiasi altro '
-                    'metodo. Tienilo in una cartella facilmente raggiungibile '
-                    '(es. Download).',
-              ),
-              SizedBox(height: 16),
-              _MigrationStep(
-                number: '4',
-                title: 'Ripristina in Noteton',
-                body:
-                    'Apri Noteton → Impostazioni → Ripristina backup → '
-                    'seleziona il file .ntb. Scegli "Unisci" per aggiungere '
-                    'i brani alla libreria esistente, oppure "Sostituisci '
-                    'tutto" se vuoi partire da zero. I duplicati vengono '
-                    'rilevati automaticamente tramite hash SHA-256.',
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Chiudi'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
@@ -470,6 +408,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 subtitle: const Text('Importa da un file .ntb'),
                 onTap: _isImporting ? null : _importBackup,
               ),
+              ListTile(
+                leading: const Icon(Icons.swap_horiz),
+                title: const Text('Importa da MobileSheets'),
+                subtitle: const Text(
+                    'Migra brani, setlist, raccolte e autori da un .msb'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: _isImporting
+                    ? null
+                    : () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const MsbImportScreen()),
+                        ),
+              ),
               const Divider(),
               // ── Aggiornamenti ─────────────────────────────────────────────
               const _SectionHeader('Aggiornamenti'),
@@ -493,12 +444,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const Divider(),
               // ── Info ──────────────────────────────────────────────────────
               const _SectionHeader('Info'),
-              ListTile(
-                leading: const Icon(Icons.import_export),
-                title: const Text('Migrazione da MobileSheets'),
-                subtitle: const Text('Come importare i tuoi PDF da MobileSheets'),
-                onTap: () => _showMigrationGuide(context),
-              ),
               ListTile(
                 leading: const Icon(Icons.info_outline),
                 title: const Text('Versione'),
@@ -547,63 +492,6 @@ class _SectionHeader extends StatelessWidget {
 enum _ExportChoice { save, share }
 
 enum _ImportMode { merge, replace }
-
-// ── Migration guide step widget ───────────────────────────────────────────────
-
-class _MigrationStep extends StatelessWidget {
-  final String number;
-  final String title;
-  final String body;
-
-  const _MigrationStep({
-    required this.number,
-    required this.title,
-    required this.body,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 28,
-          height: 28,
-          margin: const EdgeInsets.only(right: 12, top: 2),
-          decoration: BoxDecoration(
-            color: colorScheme.primary,
-            shape: BoxShape.circle,
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            number,
-            style: textTheme.labelLarge?.copyWith(
-              color: colorScheme.onPrimary,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(body, style: textTheme.bodyMedium),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 // ── Tags section ──────────────────────────────────────────────────────────────
 
