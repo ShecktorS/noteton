@@ -108,7 +108,25 @@ final _sqliteMagic = Uint8List.fromList([
   0x53, 0x51, 0x4c, 0x69, 0x74, 0x65, 0x20, 0x66, 0x6f, 0x72, 0x6d, 0x61,
   0x74, 0x20, 0x33, 0x00,
 ]);
-final _pdfMagic = Uint8List.fromList([0x25, 0x50, 0x44, 0x46, 0x2d]);
+final _pdfMagic = Uint8List.fromList([0x25, 0x50, 0x44, 0x46, 0x2d]); // "%PDF-"
+final _pdfEof = Uint8List.fromList([0x25, 0x25, 0x45, 0x4f, 0x46]); // "%%EOF"
+
+/// Trova l'ultima occorrenza di [pattern] in [data] entro `[start, end)`.
+/// Ritorna -1 se non trovata.
+int _findLastSequence(Uint8List data, Uint8List pattern, int start, int end) {
+  final pLen = pattern.length;
+  final searchEnd = end > data.length ? data.length : end;
+  if (searchEnd - start < pLen) return -1;
+  int last = -1;
+  int pos = start;
+  while (pos <= searchEnd - pLen) {
+    final found = _findSequence(data, pattern, start: pos);
+    if (found < 0 || found + pLen > searchEnd) break;
+    last = found;
+    pos = found + pLen;
+  }
+  return last;
+}
 
 int _findSequence(Uint8List data, Uint8List pattern, {int start = 0}) {
   final pLen = pattern.length;
@@ -121,6 +139,35 @@ int _findSequence(Uint8List data, Uint8List pattern, {int start = 0}) {
     return i;
   }
   return -1;
+}
+
+/// Verifica che a [offset] ci sia un VERO header PDF della forma
+/// `%PDF-N.M\n` o `%PDF-N.M\r` (N in {1,2}, M cifra), seguito da newline.
+/// Esclude falsi positivi: i 5 byte `%PDF-` capitati per caso nei bytes
+/// binari delle annotazioni MobileSheets, anche se per caso seguiti da
+/// "N.M".
+bool _isValidPdfHeader(Uint8List data, int offset) {
+  if (offset + 9 > data.length) return false;
+  // %PDF- già verificato dal caller; controlla la versione + terminatore.
+  final majorByte = data[offset + 5];
+  if (majorByte != 0x31 && majorByte != 0x32) return false; // '1' o '2'
+  if (data[offset + 6] != 0x2E) return false; // '.'
+  final minorByte = data[offset + 7];
+  if (minorByte < 0x30 || minorByte > 0x39) return false; // '0'-'9'
+  final terminator = data[offset + 8];
+  // Newline (LF o CR) è obbligatorio dopo l'header in PDF spec.
+  return terminator == 0x0A || terminator == 0x0D;
+}
+
+/// Trova il prossimo VERO header PDF (con versione valida) a partire da [start].
+int _findNextValidPdfHeader(Uint8List data, int start) {
+  var pos = start;
+  while (true) {
+    final found = _findSequence(data, _pdfMagic, start: pos);
+    if (found < 0) return -1;
+    if (_isValidPdfHeader(data, found)) return found;
+    pos = found + _pdfMagic.length;
+  }
 }
 
 (Uint8List, int) _extractSqliteBytes(Uint8List data) {
@@ -325,31 +372,78 @@ _ExtractResult _extractPdfs(
   final ok = <_MsbSongRow>[];
   var cursor = dbEnd;
 
+  // ── Algoritmo definitivo dopo iterazioni di debug sul backup reale ────────
+  //
+  // Insight chiave: nel blob raw del .msb, ogni brano occupa esattamente
+  // `fileSize` bytes consecutivi (PDF + eventuali annotation MS appese
+  // DOPO il trailer %%EOF). Il cursor avanza quindi di `fileSize`, NON
+  // della dimensione del PDF estratto.
+  //
+  // Per ogni brano:
+  //   1. Cerca il prossimo VERO header `%PDF-N.M\n` da `cursor`.
+  //   2. Trova %%EOF dentro [pdfStart, pdfStart + fileSize + 4 KiB].
+  //      - se trovato → tronca a EOF (rimuove annotation extra)
+  //      - se NON trovato → cerca in range esteso fino a 5× fileSize
+  //        (caso fileSize obsoleto, PDF cresciuto)
+  //   3. Estrai bytes [pdfStart, eofPos + 5].
+  //   4. Avanza cursor a `pdfStart + fileSize` per allinearsi al prossimo brano.
+
   for (final s in songs) {
-    if (s.fileSize <= 0 || s.fileSize > 200 * 1024 * 1024) {
-      warnings.add(
-          'Saltato "${s.title}" (id=${s.id}): FileSize=${s.fileSize} non valido.');
-      continue;
-    }
-    final pdfStart = _findSequence(data, _pdfMagic, start: cursor);
+    final pdfStart = _findNextValidPdfHeader(data, cursor);
     if (pdfStart < 0) {
       warnings.add(
           'Interrotto a "${s.title}": nessun PDF oltre offset $cursor. '
           'I brani successivi potrebbero essere file collegati esternamente, non inclusi nel backup.');
       break;
     }
-    final pdfEnd = pdfStart + s.fileSize;
-    if (pdfEnd > data.length) {
+
+    // Passata 1: ULTIMO %%EOF entro fileSize + 4 KiB
+    int limit1 = pdfStart + s.fileSize + 4 * 1024;
+    if (limit1 > data.length) limit1 = data.length;
+    int eofPos = _findLastSequence(data, _pdfEof, pdfStart, limit1);
+
+    // Passata 2 (fallback): PRIMO EOF in range esteso 5× fileSize
+    if (eofPos < 0) {
+      int range2 = s.fileSize * 5;
+      if (range2 < 1024 * 1024) range2 = 1024 * 1024;
+      int limit2 = pdfStart + range2;
+      if (limit2 > data.length) limit2 = data.length;
+      final firstEof = _findSequence(data, _pdfEof, start: pdfStart);
+      if (firstEof >= 0 && firstEof < limit2) {
+        eofPos = firstEof;
+      }
+    }
+
+    if (eofPos < 0) {
       warnings.add(
-          'Saltato "${s.title}": FileSize eccede la fine del file.');
-      cursor = pdfStart + _pdfMagic.length;
+          'Saltato "${s.title}" (id=${s.id}): PDF senza trailer %%EOF '
+          'da offset $pdfStart. File corrotto o tracce non leggibili.');
+      // Avanza comunque di fileSize per stare allineati al prossimo brano.
+      cursor = pdfStart + (s.fileSize > 0 ? s.fileSize : _pdfMagic.length);
       continue;
     }
-    s.pdfBytes = Uint8List.sublistView(data, pdfStart, pdfEnd);
-    s.pdfSha256 = sha256.convert(s.pdfBytes!).toString();
+
+    final pdfEnd = eofPos + _pdfEof.length;
+    final pdfBytes = Uint8List.sublistView(data, pdfStart, pdfEnd);
+
+    // Sanity check: dimensione plausibile (200 MiB max).
+    if (pdfBytes.length > 200 * 1024 * 1024) {
+      warnings.add(
+          'Saltato "${s.title}": dimensione anomala (${pdfBytes.length} byte). '
+          'Probabilmente delimitatori sbagliati nel parsing.');
+      cursor = pdfStart + s.fileSize;
+      continue;
+    }
+
+    s.pdfBytes = pdfBytes;
+    s.pdfSha256 = sha256.convert(pdfBytes).toString();
     ok.add(s);
-    cursor = pdfEnd;
+
+    // CRITICAL: avanza cursor di fileSize (non di pdfEnd).
+    // Le annotation MS vivono in [pdfEnd, pdfStart + fileSize].
+    cursor = pdfStart + s.fileSize;
   }
+
   return (songs: ok, warnings: warnings);
 }
 
