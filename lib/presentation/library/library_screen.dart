@@ -499,7 +499,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     if (confirmed != true) return;
     if (!mounted) return;
     final repo = ref.read(songRepositoryProvider);
-    for (final id in List.from(_selectedIds)) {
+    for (final id in _selectedIds.toList()) {
       await repo.delete(id);
     }
     _exitSelectionMode();
@@ -616,11 +616,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 Navigator.pop(ctx);
                 final repo = ref.read(collectionRepositoryProvider);
                 // Add to newly selected
-                for (final id in selectedIds.difference(Set.from(currentIds))) {
+                for (final id in selectedIds.difference(Set<int>.from(currentIds))) {
                   await repo.addSong(id, song.id!);
                 }
                 // Remove from deselected
-                for (final id in Set.from(currentIds).difference(selectedIds)) {
+                for (final id in Set<int>.from(currentIds).difference(selectedIds)) {
                   await repo.removeSong(id, song.id!);
                 }
                 ref.invalidate(collectionsProvider);
@@ -880,7 +880,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                           ),
                           const SizedBox(height: 14),
                           DropdownButtonFormField<String>(
-                            value: selectedPeriod,
+                            initialValue: selectedPeriod,
                             decoration: const InputDecoration(
                                 labelText:
                                     'Periodo / Genere (opzionale)'),
@@ -912,7 +912,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                           ),
                           const SizedBox(height: 14),
                           DropdownButtonFormField<String>(
-                            value: selectedInstrument,
+                            initialValue: selectedInstrument,
                             decoration: const InputDecoration(
                                 labelText: 'Strumento'),
                             isExpanded: true,
@@ -1282,7 +1282,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) {
-          SongStatus? localStatus = _statusFilter;
           int? localTagId = currentTagFilter;
           // Re-read on rebuild
           return SafeArea(
@@ -1852,118 +1851,6 @@ class _SongGridCard extends StatelessWidget {
             ),
           ),
       ],
-    );
-  }
-}
-
-// ── Search delegate ───────────────────────────────────────────────────────────
-
-class _SongSearchDelegate extends SearchDelegate<String> {
-  final WidgetRef ref;
-  _SongSearchDelegate(this.ref);
-
-  @override
-  String get searchFieldLabel => 'Cerca per titolo, compositore, tonalità…';
-
-  @override
-  List<Widget> buildActions(BuildContext context) => [
-        if (query.isNotEmpty)
-          IconButton(icon: const Icon(Icons.clear), onPressed: () => query = ''),
-      ];
-
-  @override
-  Widget buildLeading(BuildContext context) => IconButton(
-      icon: const Icon(Icons.arrow_back),
-      onPressed: () => close(context, ''));
-
-  @override
-  Widget buildResults(BuildContext context) => _buildResultsWidget(context);
-
-  @override
-  Widget buildSuggestions(BuildContext context) => _buildResultsWidget(context);
-
-  Widget _buildResultsWidget(BuildContext context) {
-    if (query.trim().isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.search,
-                size: 64,
-                color: Theme.of(context).colorScheme.outline),
-            const SizedBox(height: 12),
-            const Text('Digita per cercare'),
-          ],
-        ),
-      );
-    }
-
-    return Consumer(
-      builder: (context, ref, _) {
-        final songsAsync = ref.watch(
-            songsProvider((query: query.trim(), tagId: null)));
-        return songsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Errore: $e')),
-          data: (songs) {
-            if (songs.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.music_off,
-                        size: 64,
-                        color: Theme.of(context).colorScheme.outline),
-                    const SizedBox(height: 12),
-                    Text('Nessun risultato per "$query"'),
-                  ],
-                ),
-              );
-            }
-            return ListView.builder(
-              itemCount: songs.length,
-              itemBuilder: (context, i) {
-                final song = songs[i];
-                return ListTile(
-                  leading: SizedBox(
-                    width: 40,
-                    height: 56,
-                    child: PdfThumbnail(
-                      key: ValueKey(song.filePath),
-                      filePath: song.filePath,
-                    ),
-                  ),
-                  title: Text(
-                    song.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  subtitle: Text(
-                    [
-                      if (song.composerName != null) song.composerName!,
-                      if (song.keySignature != null)
-                        KeySignatureLocalization.display(
-                            song.keySignature!,
-                            Localizations.localeOf(context)),
-                    ].join(' · '),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withOpacity(0.6)),
-                  ),
-                  onTap: () {
-                    close(context, '');
-                    context.push('${AppConstants.routeViewer}/${song.id}');
-                  },
-                );
-              },
-            );
-          },
-        );
-      },
     );
   }
 }

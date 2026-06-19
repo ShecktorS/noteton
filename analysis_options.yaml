@@ -9,6 +9,13 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+# Controllo di tipo stretto (raccomandato dalla skill dart-run-static-analysis):
+# previene i cast impliciti da dynamic, una fonte comune di bug a runtime.
+# (strict-inference e strict-raw-types sono omessi: troppo rumorosi sulle API Flutter standard.)
+analyzer:
+  language:
+    strict-casts: true
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`

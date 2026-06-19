@@ -46,9 +46,10 @@ class DrawingLayerState extends ConsumerState<DrawingLayer> {
   }
 
   @override
-  void didUpdateWidget(DrawingLayer old) {
-    super.didUpdateWidget(old);
-    if (old.pageNumber != widget.pageNumber || old.songId != widget.songId) {
+  void didUpdateWidget(DrawingLayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.pageNumber != widget.pageNumber ||
+        oldWidget.songId != widget.songId) {
       _loadStrokes();
     }
   }
@@ -111,10 +112,11 @@ class DrawingLayerState extends ConsumerState<DrawingLayer> {
     );
   }
 
-  String _colorToHex(Color c) =>
-      '#${c.red.toRadixString(16).padLeft(2, '0')}'
-      '${c.green.toRadixString(16).padLeft(2, '0')}'
-      '${c.blue.toRadixString(16).padLeft(2, '0')}';
+  String _colorToHex(Color c) {
+    String channel(double v) =>
+        (v * 255.0).round().clamp(0, 255).toRadixString(16).padLeft(2, '0');
+    return '#${channel(c.r)}${channel(c.g)}${channel(c.b)}';
+  }
 
   void _onPointerDown(PointerDownEvent e) {
     final isStylus = e.kind == PointerDeviceKind.stylus ||
@@ -270,7 +272,7 @@ class _AnnotationPainter extends CustomPainter {
     path.close();
 
     final paint = Paint()
-      ..color = stroke.parsedColor.withOpacity(stroke.opacity)
+      ..color = stroke.parsedColor.withValues(alpha: stroke.opacity)
       ..style = PaintingStyle.fill
       ..blendMode = stroke.tool == DrawingTool.highlighter
           ? BlendMode.multiply

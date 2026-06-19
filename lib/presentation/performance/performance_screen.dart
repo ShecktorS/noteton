@@ -323,7 +323,7 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
                   colors: _leftFlash
-                      ? [Colors.white.withOpacity(0.15), Colors.transparent]
+                      ? [Colors.white.withValues(alpha: 0.15), Colors.transparent]
                       : [Colors.transparent, Colors.transparent],
                 ),
               ),
@@ -350,7 +350,7 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
                   begin: Alignment.centerRight,
                   end: Alignment.centerLeft,
                   colors: _rightFlash
-                      ? [Colors.white.withOpacity(0.15), Colors.transparent]
+                      ? [Colors.white.withValues(alpha: 0.15), Colors.transparent]
                       : [Colors.transparent, Colors.transparent],
                 ),
               ),

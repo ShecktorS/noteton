@@ -230,7 +230,7 @@ class _CollectionDetailScreenState
     );
     if (confirmed != true) return;
     final repo = ref.read(collectionRepositoryProvider);
-    for (final songId in List.from(_selectedSongIds)) {
+    for (final songId in _selectedSongIds.toList()) {
       await repo.removeSong(widget.collectionId, songId);
     }
     _exitSelectionMode();

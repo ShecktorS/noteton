@@ -101,7 +101,7 @@ class _SetlistDetailScreenState extends ConsumerState<SetlistDetailScreen> {
     if (confirmed != true) return;
 
     final repo = ref.read(setlistRepositoryProvider);
-    for (final id in List.from(_selectedIds)) {
+    for (final id in _selectedIds.toList()) {
       await repo.removeItem(id);
     }
     _exitSelectionMode();

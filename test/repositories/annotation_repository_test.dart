@@ -16,7 +16,7 @@ void main() {
     const songId = 1;
     const pageNumber = 3;
 
-    PageAnnotations _sampleData() => PageAnnotations(
+    PageAnnotations sampleData() => const PageAnnotations(
           strokes: [
             DrawingStroke(
               id: 'stroke-1',
@@ -24,7 +24,7 @@ void main() {
               color: '#000000',
               opacity: 1.0,
               size: 4.0,
-              points: const [
+              points: [
                 DrawingPoint(x: 0.1, y: 0.2, p: 0.5),
                 DrawingPoint(x: 0.3, y: 0.4, p: 0.7),
               ],
@@ -38,7 +38,7 @@ void main() {
     });
 
     test('savePage then getPage returns correct data', () async {
-      final data = _sampleData();
+      final data = sampleData();
       await repo.savePage(songId, pageNumber, data);
 
       final result = await repo.getPage(songId, pageNumber);
@@ -50,9 +50,9 @@ void main() {
     });
 
     test('savePage overwrites previous data for same page', () async {
-      await repo.savePage(songId, pageNumber, _sampleData());
+      await repo.savePage(songId, pageNumber, sampleData());
 
-      final updated = PageAnnotations(
+      const updated = PageAnnotations(
         strokes: [
           DrawingStroke(
             id: 'stroke-new',
@@ -60,7 +60,7 @@ void main() {
             color: '#FFD600',
             opacity: 0.4,
             size: 14.0,
-            points: const [DrawingPoint(x: 0.5, y: 0.5, p: 0.5)],
+            points: [DrawingPoint(x: 0.5, y: 0.5, p: 0.5)],
           ),
         ],
       );
@@ -73,7 +73,7 @@ void main() {
     });
 
     test('different pages are stored independently', () async {
-      final page1Data = PageAnnotations(
+      const page1Data = PageAnnotations(
         strokes: [
           DrawingStroke(
             id: 'p1',
@@ -81,11 +81,11 @@ void main() {
             color: '#FF0000',
             opacity: 1.0,
             size: 4.0,
-            points: const [],
+            points: [],
           ),
         ],
       );
-      final page2Data = PageAnnotations(
+      const page2Data = PageAnnotations(
         strokes: [
           DrawingStroke(
             id: 'p2',
@@ -93,7 +93,7 @@ void main() {
             color: '#00FF00',
             opacity: 0.4,
             size: 14.0,
-            points: const [],
+            points: [],
           ),
         ],
       );
@@ -109,8 +109,8 @@ void main() {
     });
 
     test('deletePage removes data for that page only', () async {
-      await repo.savePage(songId, 1, _sampleData());
-      await repo.savePage(songId, 2, _sampleData());
+      await repo.savePage(songId, 1, sampleData());
+      await repo.savePage(songId, 2, sampleData());
 
       await repo.deletePage(songId, 1);
 

@@ -21,13 +21,13 @@ void main() {
   });
 
   group('DrawingStroke', () {
-    final stroke = DrawingStroke(
+    const stroke = DrawingStroke(
       id: 'test-id',
       tool: DrawingTool.pen,
       color: '#FF0000',
       opacity: 1.0,
       size: 4.0,
-      points: const [
+      points: [
         DrawingPoint(x: 0.1, y: 0.2, p: 0.5),
         DrawingPoint(x: 0.3, y: 0.4, p: 0.7),
       ],
@@ -49,13 +49,13 @@ void main() {
     });
 
     test('parsedColor handles lowercase hex', () {
-      final s = DrawingStroke(
+      const s = DrawingStroke(
         id: 'x',
         tool: DrawingTool.pen,
         color: '#1e88e5',
         opacity: 1.0,
         size: 4.0,
-        points: const [],
+        points: [],
       );
       expect(s.parsedColor, const Color(0xFF1E88E5));
     });
@@ -79,21 +79,21 @@ void main() {
 
   group('PageAnnotations', () {
     final strokes = [
-      DrawingStroke(
+      const DrawingStroke(
         id: 'a',
         tool: DrawingTool.pen,
         color: '#000000',
         opacity: 1.0,
         size: 4.0,
-        points: const [DrawingPoint(x: 0.5, y: 0.5, p: 0.6)],
+        points: [DrawingPoint(x: 0.5, y: 0.5, p: 0.6)],
       ),
-      DrawingStroke(
+      const DrawingStroke(
         id: 'b',
         tool: DrawingTool.highlighter,
         color: '#FFD600',
         opacity: 0.4,
         size: 14.0,
-        points: const [DrawingPoint(x: 0.1, y: 0.9, p: 0.5)],
+        points: [DrawingPoint(x: 0.1, y: 0.9, p: 0.5)],
       ),
     ];
 
@@ -115,7 +115,7 @@ void main() {
     });
 
     test('toJson includes version field', () {
-      final json = PageAnnotations(strokes: const []).toJson();
+      final json = const PageAnnotations(strokes: []).toJson();
       expect(json, contains('"version"'));
       expect(json, contains('"strokes"'));
     });

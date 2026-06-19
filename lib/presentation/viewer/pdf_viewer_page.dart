@@ -406,11 +406,11 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
         padding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.80),
+          color: Colors.black.withValues(alpha: 0.80),
           borderRadius: BorderRadius.circular(32),
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withOpacity(0.4),
+                color: Colors.black.withValues(alpha: 0.4),
                 blurRadius: 12,
                 offset: const Offset(0, 4))
           ],
@@ -457,7 +457,7 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
           padding: const EdgeInsets.all(6),
           decoration: selected
               ? BoxDecoration(
-                  color: accent.withOpacity(0.25),
+                  color: accent.withValues(alpha: 0.25),
                   borderRadius: BorderRadius.circular(8),
                 )
               : null,
@@ -470,7 +470,7 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
   }
 
   Widget _colorDot(Color color) {
-    final selected = _toolState.color.value == color.value;
+    final selected = _toolState.color.toARGB32() == color.toARGB32();
     return GestureDetector(
       onTap: () =>
           setState(() => _toolState = _toolState.copyWith(color: color)),
