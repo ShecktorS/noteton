@@ -84,6 +84,12 @@ flutter_03.png
 # Tools / scripts non distribuiti
 tools/
 
+# Playwright (automazione browser, mai da committare)
+.playwright-cli/
+playwright-report/
+test-results/
+.last-run.json
+
 # Piattaforme cross-platform non target (rigenerate automaticamente da Flutter
 # se servono in locale, ma non vogliamo committarle: il target e' solo Android)
 /windows/

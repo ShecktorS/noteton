@@ -37,7 +37,15 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         run: |
-          echo "$KEYSTORE_BASE64" | base64 -d > android/noteton-release.p12
+          # tr -d rimuove eventuali spazi/a-capo introdotti dal copia-incolla del secret
+          echo "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > android/noteton-release.p12
+          # Validazione: dev'essere un PKCS12 leggibile con la password fornita
+          if ! openssl pkcs12 -in android/noteton-release.p12 -nokeys -passin pass:"$STORE_PASSWORD" -noout 2>/dev/null; then
+            echo "::error::KEYSTORE_BASE64 non valido o STORE_PASSWORD errata: la keystore decodificata non e' leggibile."
+            echo "Byte decodificati: $(wc -c < android/noteton-release.p12) (atteso ~2500). Probabile secret troncato."
+            exit 1
+          fi
+          echo "Keystore valida: $(wc -c < android/noteton-release.p12) byte."
           cat > android/key.properties <<EOF
           storePassword=$STORE_PASSWORD
           keyPassword=$KEY_PASSWORD
