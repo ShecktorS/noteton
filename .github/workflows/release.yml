@@ -34,21 +34,23 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         run: |
           # tr -d rimuove eventuali spazi/a-capo introdotti dal copia-incolla del secret
           echo "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > android/noteton-release.p12
-          # Validazione: dev'essere un PKCS12 leggibile con la password fornita
-          if ! openssl pkcs12 -in android/noteton-release.p12 -nokeys -passin pass:"$STORE_PASSWORD" -noout 2>/dev/null; then
-            echo "::error::KEYSTORE_BASE64 non valido o STORE_PASSWORD errata: la keystore decodificata non e' leggibile."
-            echo "Byte decodificati: $(wc -c < android/noteton-release.p12) (atteso ~2500). Probabile secret troncato."
+          # Validazione completa: estrae anche la chiave, cosi' verifica che la
+          # password apra sia lo store SIA la chiave (in un PKCS12 coincidono).
+          if ! openssl pkcs12 -in android/noteton-release.p12 -nodes -passin pass:"$STORE_PASSWORD" -noout 2>/dev/null; then
+            echo "::error::KEYSTORE_BASE64 non valido o STORE_PASSWORD errata: la keystore non e' apribile."
+            echo "Byte decodificati: $(wc -c < android/noteton-release.p12) (atteso ~2500). Probabile secret troncato o password sbagliata."
             exit 1
           fi
           echo "Keystore valida: $(wc -c < android/noteton-release.p12) byte."
+          # In PKCS12 la password della chiave e' SEMPRE uguale a quella dello store:
+          # usiamo STORE_PASSWORD per entrambe, cosi' non serve il secret KEY_PASSWORD.
           cat > android/key.properties <<EOF
           storePassword=$STORE_PASSWORD
-          keyPassword=$KEY_PASSWORD
+          keyPassword=$STORE_PASSWORD
           keyAlias=$KEY_ALIAS
           storeFile=noteton-release.p12
           EOF
