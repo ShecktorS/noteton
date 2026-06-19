@@ -1,0 +1,74 @@
+name: Release
+
+# Si attiva quando viene pushato un tag versione (es. v0.10.1).
+# Builda l'APK di release firmato e pubblica una GitHub Release con l'asset.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write # necessario per creare la release e caricare l'asset
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.2'
+          channel: stable
+          cache: true
+
+      - name: Ricostruisci la keystore dai secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > android/noteton-release.p12
+          cat > android/key.properties <<EOF
+          storePassword=$STORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=noteton-release.p12
+          EOF
+
+      - name: Estrai la versione dal tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Installa le dipendenze
+        run: flutter pub get
+
+      - name: Build APK di release
+        run: flutter build apk --release
+
+      - name: Rinomina l'APK
+        run: |
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk \
+             dist/Noteton-${{ steps.version.outputs.version }}.apk
+
+      - name: Pubblica la Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Noteton ${{ steps.version.outputs.version }}
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: dist/Noteton-${{ steps.version.outputs.version }}.apk
+
+      - name: Pulizia segreti
+        if: always()
+        run: rm -f android/noteton-release.p12 android/key.properties

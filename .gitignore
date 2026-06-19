@@ -40,6 +40,12 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Firma di release — MAI versionare keystore e password (vivono come GitHub secrets)
+/android/key.properties
+/android/*.p12
+/android/*.jks
+/android/*.keystore
+
 # iOS
 /ios/Flutter/Generated.xcconfig
 /ios/Flutter/flutter_export_environment.sh
@@ -64,6 +70,8 @@ app.*.map.json
 # Claude Code
 CLAUDE.md
 .claude/
+.agents/
+skills-lock.json
 noteton_logo_philosophy.md
 generate_logo.mjs
 node_modules/
