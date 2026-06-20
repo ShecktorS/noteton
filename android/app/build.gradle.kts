@@ -32,9 +32,10 @@ android {
     }
 
     defaultConfig {
-        // Identità pubblica dell'app (Play Store / installazione). Stabile: NON cambiarla
-        // dopo la pubblicazione, altrimenti Android la tratta come un'app diversa.
-        applicationId = "com.shecktors.noteton"
+        // Identità dell'app sul dispositivo. NON cambiarla: Android tratterebbe la
+        // build come un'app diversa, impedendo l'aggiornamento in-place delle
+        // installazioni esistenti (distribuzione via GitHub/APK, non Play Store).
+        applicationId = "com.example.noteton"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
