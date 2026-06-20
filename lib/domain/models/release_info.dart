@@ -17,7 +17,7 @@ class ReleaseInfo {
   static ReleaseInfo? fromJson(Map<String, dynamic> json) {
     try {
       final rawTag = json['tag_name'] as String? ?? '';
-      final version = rawTag.replaceAll('v', '');
+      final version = _stripPrefix(rawTag);
       if (version.isEmpty) return null;
 
       final assets = json['assets'] as List<dynamic>? ?? [];
@@ -68,9 +68,16 @@ class ReleaseInfo {
     return '${d.day} ${months[d.month - 1]} ${d.year}';
   }
 
+  /// Rimuove un eventuale prefisso 'v' del tag (es. 'v0.10.1' → '0.10.1')
+  /// senza toccare altre 'v' né suffissi di build ('+20').
+  static String _stripPrefix(String tag) {
+    return tag.replaceFirst(RegExp(r'^v'), '').trim();
+  }
+
   static List<int> _parseVersion(String v) {
-    return v
-        .replaceAll('v', '')
+    return _stripPrefix(v)
+        .split('+') // scarta un eventuale build number ('0.10.1+20')
+        .first
         .split('.')
         .map((s) => int.tryParse(s) ?? 0)
         .toList();
