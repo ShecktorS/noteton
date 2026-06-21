@@ -1,7 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:noteton/data/database/database_helper.dart';
 import 'package:noteton/data/repositories/annotation_repository.dart';
 import 'package:noteton/domain/models/drawing_stroke.dart';
 
+import '../helpers/fixtures.dart';
 import '../helpers/test_database.dart';
 
 void main() {
@@ -9,6 +11,10 @@ void main() {
 
   setUp(() async {
     await openTestDatabase();
+    // Le annotazioni hanno una FK su songs(id) con ON DELETE CASCADE e nei
+    // test le foreign key sono attive: serve un brano reale (otterrà id 1).
+    final db = await DatabaseHelper.instance.database;
+    await insertSong(db, title: 'Brano annotato');
     repo = AnnotationRepository();
   });
 

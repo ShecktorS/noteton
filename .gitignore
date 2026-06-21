@@ -67,9 +67,16 @@ app.*.map.json
 /linux/flutter/generated_plugin_registrant.h
 /linux/flutter/generated_plugins.cmake
 
-# Claude Code
+# Claude Code — file di lavoro per Claude, mai da pubblicare su GitHub
 CLAUDE.md
+**/CLAUDE.md
+CLAUDE.local.md
 .claude/
+**/.claude/
+.claudeignore
+# Config MCP (può contenere token/segreti dei server): tieni privata
+.mcp.json
+.mcp.local.json
 .agents/
 skills-lock.json
 noteton_logo_philosophy.md
