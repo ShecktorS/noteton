@@ -12,7 +12,7 @@ class NotetonApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
     final colorVariant = ref.watch(colorVariantProvider);
-    
+
     return MaterialApp.router(
       title: 'Noteton',
       theme: AppTheme.light(colorVariant),
@@ -34,6 +34,37 @@ class _UpdateGate extends ConsumerStatefulWidget {
 
   @override
   ConsumerState<_UpdateGate> createState() => _UpdateGateState();
+}
+
+class _BetaBadge extends StatelessWidget {
+  final Color foreground;
+  final Color background;
+
+  const _BetaBadge({
+    required this.foreground,
+    required this.background,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        child: Text(
+          'BETA',
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: foreground,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.4,
+              ),
+        ),
+      ),
+    );
+  }
 }
 
 class _UpdateGateState extends ConsumerState<_UpdateGate> {
@@ -74,7 +105,21 @@ class _UpdateGateState extends ConsumerState<_UpdateGate> {
           children: [
             const Icon(Icons.system_update, size: 22),
             const SizedBox(width: 10),
-            Expanded(child: Text('Aggiornamento v${release.version}')),
+            Expanded(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text('Aggiornamento v${release.version}'),
+                  if (release.prerelease)
+                    _BetaBadge(
+                      foreground: Theme.of(ctx).colorScheme.onTertiaryContainer,
+                      background: Theme.of(ctx).colorScheme.tertiaryContainer,
+                    ),
+                ],
+              ),
+            ),
           ],
         ),
         content: ConstrainedBox(

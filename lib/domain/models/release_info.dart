@@ -4,12 +4,14 @@ class ReleaseInfo {
   final String downloadUrl;  // browser_download_url dell'asset .apk
   final String changelog;    // body markdown della release
   final DateTime publishedAt;
+  final bool prerelease;     // true se è una pre-release (beta, alpha, rc)
 
   const ReleaseInfo({
     required this.version,
     required this.downloadUrl,
     required this.changelog,
     required this.publishedAt,
+    this.prerelease = false,
   });
 
   /// Costruisce da risposta JSON dell'API GitHub Releases.
@@ -41,6 +43,7 @@ class ReleaseInfo {
         downloadUrl: downloadUrl,
         changelog: (json['body'] as String?) ?? '',
         publishedAt: publishedAt,
+        prerelease: json['prerelease'] as bool? ?? false,
       );
     } catch (_) {
       return null;
@@ -48,14 +51,16 @@ class ReleaseInfo {
   }
 
   /// true se questa versione è più recente di [currentVersion].
+  /// Gestisce semantic versioning con pre-release:
+  /// 0.11.0 > 0.11.0-beta.10 > 0.11.0-beta.2 > 0.10.3.
   bool isNewerThan(String currentVersion) {
-    final a = _parseVersion(version);
-    final b = _parseVersion(currentVersion);
-    for (var i = 0; i < a.length && i < b.length; i++) {
-      if (a[i] > b[i]) return true;
-      if (a[i] < b[i]) return false;
-    }
-    return a.length > b.length;
+    final a = _parseSemanticVersion(version);
+    final b = _parseSemanticVersion(currentVersion);
+
+    final numberCompare = _compareNumbers(a.numbers, b.numbers);
+    if (numberCompare != 0) return numberCompare > 0;
+
+    return _comparePrerelease(a.prerelease, b.prerelease) > 0;
   }
 
   /// Data formattata in italiano senza dipendenze di locale.
@@ -74,12 +79,65 @@ class ReleaseInfo {
     return tag.replaceFirst(RegExp(r'^v'), '').trim();
   }
 
-  static List<int> _parseVersion(String v) {
-    return _stripPrefix(v)
-        .split('+') // scarta un eventuale build number ('0.10.1+20')
-        .first
+  static ({List<int> numbers, List<String>? prerelease})
+      _parseSemanticVersion(String v) {
+    final cleaned = _stripPrefix(v).split('+').first; // rimuove build number
+    final parts = cleaned.split('-'); // separa versione da pre-release
+
+    final numbers = parts[0]
         .split('.')
         .map((s) => int.tryParse(s) ?? 0)
         .toList();
+
+    // Padding minimo major.minor.patch, senza perdere eventuali componenti
+    // extra già supportati dai test esistenti (es. 0.10.1.1).
+    while (numbers.length < 3) {
+      numbers.add(0);
+    }
+
+    final prerelease = parts.length > 1
+        ? parts.sublist(1).join('-').split('.')
+        : null;
+
+    return (numbers: numbers, prerelease: prerelease);
+  }
+
+  static int _compareNumbers(List<int> a, List<int> b) {
+    final length = a.length > b.length ? a.length : b.length;
+    for (var i = 0; i < length; i++) {
+      final av = i < a.length ? a[i] : 0;
+      final bv = i < b.length ? b[i] : 0;
+      if (av != bv) return av.compareTo(bv);
+    }
+    return 0;
+  }
+
+  static int _comparePrerelease(List<String>? a, List<String>? b) {
+    // Stable (nessun suffisso) ha precedenza maggiore della pre-release.
+    if (a == null && b == null) return 0;
+    if (a == null) return 1;
+    if (b == null) return -1;
+
+    final length = a.length > b.length ? a.length : b.length;
+    for (var i = 0; i < length; i++) {
+      if (i >= a.length) return -1;
+      if (i >= b.length) return 1;
+
+      final av = a[i];
+      final bv = b[i];
+      final ai = int.tryParse(av);
+      final bi = int.tryParse(bv);
+
+      if (ai != null && bi != null) {
+        if (ai != bi) return ai.compareTo(bi);
+        continue;
+      }
+      if (ai != null) return -1;
+      if (bi != null) return 1;
+
+      final textCompare = av.compareTo(bv);
+      if (textCompare != 0) return textCompare;
+    }
+    return 0;
   }
 }

@@ -10,6 +10,7 @@ import '../../core/exceptions/backup_exceptions.dart';
 import '../../core/theme/app_theme.dart';
 import '../../domain/models/import_report.dart';
 import '../../domain/models/tag.dart';
+import '../../domain/models/update_channel.dart';
 import '../../providers/providers.dart';
 import '../common/app_bottom_nav.dart';
 import 'auto_update_screen.dart';
@@ -440,9 +441,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 subtitle: Consumer(
                   builder: (context, ref, _) {
                     final enabled = ref.watch(autoUpdateEnabledProvider);
+                    final channel = ref.watch(updateChannelProvider);
+                    final channelLabel = channel == UpdateChannel.beta
+                        ? 'canale beta'
+                        : 'canale stabile';
                     return Text(enabled
-                        ? 'Notifica al lancio quando esce una nuova versione'
-                        : 'Disattivato — controllo solo manuale');
+                        ? 'Attivo · $channelLabel'
+                        : 'Disattivato · $channelLabel');
                   },
                 ),
                 trailing: const Icon(Icons.chevron_right),
@@ -668,13 +673,13 @@ class _ColorVariantSelector extends ConsumerWidget {
         runSpacing: 8,
         children: ColorVariant.values.map((variant) {
           final isSelected = variant == currentVariant;
-          
+
           // Genera anteprima colore dal seed della variante
           final previewColor = switch (variant) {
             ColorVariant.defaultTheme => const Color(0xFF7EB8F7),  // primary del tema default dark
             ColorVariant.purple => const Color(0xFFB794D6),        // primary del tema purple dark
           };
-          
+
           final label = switch (variant) {
             ColorVariant.defaultTheme => 'Midnight',
             ColorVariant.purple => 'Amethyst',

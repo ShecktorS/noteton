@@ -13,6 +13,7 @@ Map<String, dynamic> _releaseJson({
   List<Map<String, dynamic>>? assets,
   String published = '2026-06-20T10:00:00Z',
   String body = 'note di rilascio',
+  bool prerelease = false,
 }) {
   final defaultAssets = [
     {
@@ -24,6 +25,7 @@ Map<String, dynamic> _releaseJson({
     'tag_name': tag,
     'published_at': published,
     'body': body,
+    'prerelease': prerelease,
     'assets': assets ?? defaultAssets,
   })) as Map<String, dynamic>;
 }
@@ -53,6 +55,15 @@ void main() {
         },
       ]));
       expect(r, isNull);
+    });
+
+    test('estrae il flag prerelease quando presente', () {
+      final r = ReleaseInfo.fromJson(_releaseJson(
+        tag: 'v0.11.0-beta.1',
+        prerelease: true,
+      ));
+      expect(r, isNotNull);
+      expect(r!.prerelease, isTrue);
     });
 
     test('sceglie l’asset .apk ignorando gli altri', () {
@@ -107,6 +118,26 @@ void main() {
     test('versione corrente con più componenti', () {
       expect(withVersion('0.10.1').isNewerThan('0.10.1.0'), isFalse);
       expect(withVersion('0.10.1.1').isNewerThan('0.10.1'), isTrue);
+    });
+
+    test('beta nuova è più recente della stable precedente', () {
+      expect(withVersion('0.11.0-beta.1').isNewerThan('0.10.3'), isTrue);
+    });
+
+    test('confronta numericamente i progressivi beta', () {
+      expect(
+        withVersion('0.11.0-beta.2').isNewerThan('0.11.0-beta.1'),
+        isTrue,
+      );
+      expect(
+        withVersion('0.11.0-beta.10').isNewerThan('0.11.0-beta.2'),
+        isTrue,
+      );
+    });
+
+    test('stable è più recente della beta con stesso major/minor/patch', () {
+      expect(withVersion('0.11.0').isNewerThan('0.11.0-beta.10'), isTrue);
+      expect(withVersion('0.11.0-beta.1').isNewerThan('0.11.0'), isFalse);
     });
   });
 }

@@ -112,5 +112,6 @@ test-results/
 # Synology Drive sync folders
 .drive_sync/
 
-# Sessioni pi coding agent - contengono conversazioni private
+# pi coding agent - configurazioni/sessioni locali, mai da committare
+.pi/
 .pi-sessions/

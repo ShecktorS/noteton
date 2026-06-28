@@ -22,6 +22,7 @@ import '../domain/models/collection.dart';
 import '../domain/models/library_stats.dart';
 import '../domain/models/release_info.dart';
 import '../domain/models/tag.dart';
+import '../domain/models/update_channel.dart';
 
 // Repositories (singletons)
 final songRepositoryProvider = Provider<SongRepository>((_) => SongRepository());
@@ -296,6 +297,8 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
   static const _prefDismissed = 'dismissed_update_version';
   static const _prefLastCheck = 'update_last_check_ms';
   static const _prefAutoUpdateEnabled = 'auto_update_enabled';
+  static const _prefUpdateChannel = 'update_channel';
+  static const _legacyPrefBetaChannelEnabled = 'beta_channel_enabled';
   static const _checkIntervalMs = 6 * 60 * 60 * 1000; // 6 ore
 
   /// Restituisce true se l'utente ha abilitato gli aggiornamenti automatici
@@ -309,6 +312,23 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
   static Future<void> setAutoUpdateEnabled(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_prefAutoUpdateEnabled, enabled);
+  }
+
+  /// Restituisce il canale aggiornamenti scelto dall'utente.
+  /// Default: stabile. Migra in modo trasparente la vecchia preferenza beta.
+  static Future<UpdateChannel> getUpdateChannel() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString(_prefUpdateChannel);
+    if (stored != null) return UpdateChannel.fromStorage(stored);
+
+    final legacyBeta = prefs.getBool(_legacyPrefBetaChannelEnabled) ?? false;
+    return legacyBeta ? UpdateChannel.beta : UpdateChannel.stable;
+  }
+
+  static Future<void> setUpdateChannel(UpdateChannel channel) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefUpdateChannel, channel.name);
+    await prefs.remove(_legacyPrefBetaChannelEnabled);
   }
 
   /// Controlla aggiornamenti.
@@ -331,7 +351,8 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
     state = const UpdateChecking();
     try {
       final prefs = await SharedPreferences.getInstance();
-      final release = await _service.checkForUpdate();
+      final channel = await getUpdateChannel();
+      final release = await _service.checkForUpdate(channel: channel);
       await prefs.setInt(
           _prefLastCheck, DateTime.now().millisecondsSinceEpoch);
 
@@ -420,3 +441,24 @@ class AutoUpdateEnabledNotifier extends StateNotifier<bool> {
 final autoUpdateEnabledProvider =
     StateNotifierProvider<AutoUpdateEnabledNotifier, bool>(
         (_) => AutoUpdateEnabledNotifier());
+
+/// Canale aggiornamenti selezionato dall'utente.
+/// Default: stabile. Il canale beta include anche le pre-release GitHub.
+class UpdateChannelNotifier extends StateNotifier<UpdateChannel> {
+  UpdateChannelNotifier() : super(UpdateChannel.stable) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    state = await UpdateNotifier.getUpdateChannel();
+  }
+
+  Future<void> setChannel(UpdateChannel channel) async {
+    state = channel;
+    await UpdateNotifier.setUpdateChannel(channel);
+  }
+}
+
+final updateChannelProvider =
+    StateNotifierProvider<UpdateChannelNotifier, UpdateChannel>(
+        (_) => UpdateChannelNotifier());

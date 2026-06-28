@@ -9,7 +9,7 @@ Guida per gestire release beta e stable di Noteton.
 ### Vantaggi
 - ✅ Semplicità (no merge conflicts tra branch)
 - ✅ CI/CD automatico (GitHub Actions)
-- ✅ Auto-update in-app esclude beta automaticamente
+- ✅ Auto-update in-app mostra beta solo agli utenti che scelgono il canale Beta
 - ✅ Storico completo su master
 
 ---
@@ -126,19 +126,21 @@ GitHub Actions:
 ### Pre-release (tag con `-beta`, `-alpha`, `-rc`)
 
 ```
-Visibile:     https://github.com/ShecktorS/noteton/releases
-Badge:        "Pre-release" 
-Auto-update:  ❌ NON notifica (API /latest esclude pre-release)
-Download:     Solo tester che conoscono il link
+Visibile:            https://github.com/ShecktorS/noteton/releases
+Badge GitHub:        "Pre-release"
+Canale Stabile app:  ❌ non notifica (API /latest esclude pre-release)
+Canale Beta app:     ✅ notifica se la beta è più recente della versione installata
+Download diretto:    Sempre disponibile dalla pagina GitHub Release
 ```
 
 ### Stable release (tag senza suffisso)
 
 ```
-Visibile:     https://github.com/ShecktorS/noteton/releases
-Badge:        "Latest" 
-Auto-update:  ✅ NOTIFICA tutti gli utenti
-Download:     Automatico via in-app update
+Visibile:            https://github.com/ShecktorS/noteton/releases
+Badge GitHub:        "Latest"
+Canale Stabile app:  ✅ notifica gli utenti
+Canale Beta app:     ✅ notifica anche gli utenti beta
+Download:            Automatico via in-app update
 ```
 
 ---
@@ -180,7 +182,8 @@ Il workflow `.github/workflows/release.yml` rileva automaticamente le pre-releas
 - [ ] Verifica build CI: https://github.com/ShecktorS/noteton/actions
 - [ ] Verifica pre-release flag su GitHub: https://github.com/ShecktorS/noteton/releases
 - [ ] Test APK su device fisico
-- [ ] Verifica che auto-update NON mostri la beta
+- [ ] Verifica che il canale Stabile NON mostri la beta
+- [ ] Verifica che il canale Beta mostri la beta con badge `BETA`
 
 ### Stable
 
