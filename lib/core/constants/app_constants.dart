@@ -28,6 +28,9 @@ class AppConstants {
   static const String githubApiAllReleases =
       'https://api.github.com/repos/$githubOwner/$githubRepo/releases';
 
+  static String githubApiReleaseByTag(String tag) =>
+      'https://api.github.com/repos/$githubOwner/$githubRepo/releases/tags/$tag';
+
   // Route names
   static const String routeLibrary = '/';
   static const String routeViewer = '/viewer';

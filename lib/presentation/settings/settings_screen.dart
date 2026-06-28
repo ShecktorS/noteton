@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../core/exceptions/backup_exceptions.dart';
+import '../../core/services/whats_new_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../domain/models/import_report.dart';
 import '../../domain/models/tag.dart';
@@ -230,11 +231,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         _showImportReport(report);
       }
     } on BackupException catch (e) {
-      if (mounted) _showImportError(e.userMessage, technicalDetail: e.technicalDetail);
+      if (mounted) {
+        _showImportError(e.userMessage, technicalDetail: e.technicalDetail);
+      }
     } catch (e) {
       if (mounted) {
-        _showImportError(
-            'Ripristino non riuscito per un errore imprevisto.',
+        _showImportError('Ripristino non riuscito per un errore imprevisto.',
             technicalDetail: e.toString());
       }
     } finally {
@@ -342,6 +344,76 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  Future<void> _showCurrentChangelog() async {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => const AlertDialog(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 16),
+            Expanded(child: Text('Caricamento novità…')),
+          ],
+        ),
+      ),
+    );
+
+    final info = await const WhatsNewService().getCurrentWhatsNew();
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).pop();
+
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.new_releases_outlined, size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text('Novità v${info.version}'),
+                  if (info.isPrerelease)
+                    Chip(
+                      label: const Text('BETA'),
+                      visualDensity: VisualDensity.compact,
+                      backgroundColor:
+                          Theme.of(ctx).colorScheme.tertiaryContainer,
+                      labelStyle: TextStyle(
+                        color: Theme.of(ctx).colorScheme.onTertiaryContainer,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 360, maxWidth: 420),
+          child: SingleChildScrollView(
+            child: Text(info.changelog),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Chiudi'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
@@ -359,7 +431,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SizedBox(height: 8),
               const _SectionHeader('Aspetto'),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: SegmentedButton<ThemeMode>(
                   segments: const [
                     ButtonSegment(
@@ -379,8 +452,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                   ],
                   selected: {themeMode},
-                  onSelectionChanged: (selection) =>
-                      ref.read(themeModeProvider.notifier).setMode(selection.first),
+                  onSelectionChanged: (selection) => ref
+                      .read(themeModeProvider.notifier)
+                      .setMode(selection.first),
                 ),
               ),
               const SizedBox(height: 8),
@@ -410,7 +484,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ListTile(
                 leading: const Icon(Icons.backup),
                 title: const Text('Backup libreria'),
-                subtitle: const Text('Esporta brani, setlist e raccolte in un file .ntb'),
+                subtitle: const Text(
+                    'Esporta brani, setlist e raccolte in un file .ntb'),
                 onTap: _isImporting ? null : _exportBackup,
               ),
               ListTile(
@@ -452,8 +527,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                      builder: (_) => const AutoUpdateScreen()),
+                  MaterialPageRoute(builder: (_) => const AutoUpdateScreen()),
                 ),
               ),
               const Divider(),
@@ -465,6 +539,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 subtitle: Text(
                     'Noteton${_appVersion.isNotEmpty ? ' $_appVersion' : ''}'),
                 onTap: _onVersionTapped,
+              ),
+              ListTile(
+                leading: const Icon(Icons.new_releases_outlined),
+                title: const Text('Novità della versione'),
+                subtitle:
+                    const Text('Mostra il changelog della versione installata'),
+                onTap: _showCurrentChangelog,
               ),
               const ListTile(
                 leading: Icon(Icons.balance),
@@ -517,8 +598,16 @@ class _TagsSection extends ConsumerStatefulWidget {
 
 class _TagsSectionState extends ConsumerState<_TagsSection> {
   static const _palette = [
-    '#E53935', '#F4511E', '#EF9E00', '#0B8043', '#039BE5',
-    '#3F51B5', '#8E24AA', '#D81B60', '#546E7A', '#795548',
+    '#E53935',
+    '#F4511E',
+    '#EF9E00',
+    '#0B8043',
+    '#039BE5',
+    '#3F51B5',
+    '#8E24AA',
+    '#D81B60',
+    '#546E7A',
+    '#795548',
   ];
 
   Future<void> _createTag() async {
@@ -549,12 +638,10 @@ class _TagsSectionState extends ConsumerState<_TagsSection> {
                 spacing: 10,
                 runSpacing: 10,
                 children: _palette.map((hex) {
-                  final color =
-                      Color(int.parse(hex.replaceFirst('#', '0xFF')));
+                  final color = Color(int.parse(hex.replaceFirst('#', '0xFF')));
                   final selected = selectedColor == hex;
                   return GestureDetector(
-                    onTap: () =>
-                        setDialogState(() => selectedColor = hex),
+                    onTap: () => setDialogState(() => selectedColor = hex),
                     child: Container(
                       width: 30,
                       height: 30,
@@ -565,7 +652,11 @@ class _TagsSectionState extends ConsumerState<_TagsSection> {
                             ? Border.all(color: Colors.white, width: 3)
                             : null,
                         boxShadow: selected
-                            ? [BoxShadow(color: color.withValues(alpha: 0.6), blurRadius: 6)]
+                            ? [
+                                BoxShadow(
+                                    color: color.withValues(alpha: 0.6),
+                                    blurRadius: 6)
+                              ]
                             : null,
                       ),
                     ),
@@ -607,8 +698,7 @@ class _TagsSectionState extends ConsumerState<_TagsSection> {
               child: const Text('Annulla')),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Elimina',
-                style: TextStyle(color: Colors.red)),
+            child: const Text('Elimina', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -623,20 +713,17 @@ class _TagsSectionState extends ConsumerState<_TagsSection> {
     final tagsAsync = ref.watch(tagsProvider);
     return tagsAsync.when(
       loading: () => const Padding(
-          padding: EdgeInsets.all(16),
-          child: CircularProgressIndicator()),
+          padding: EdgeInsets.all(16), child: CircularProgressIndicator()),
       error: (e, _) => Text('Errore: $e'),
       data: (tags) => Column(
         children: [
           ...tags.map((tag) {
-            final color =
-                Color(int.parse(tag.color.replaceFirst('#', '0xFF')));
+            final color = Color(int.parse(tag.color.replaceFirst('#', '0xFF')));
             return ListTile(
               leading: Container(
                 width: 14,
                 height: 14,
-                decoration:
-                    BoxDecoration(color: color, shape: BoxShape.circle),
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
               ),
               title: Text(tag.name),
               trailing: IconButton(
@@ -676,8 +763,10 @@ class _ColorVariantSelector extends ConsumerWidget {
 
           // Genera anteprima colore dal seed della variante
           final previewColor = switch (variant) {
-            ColorVariant.defaultTheme => const Color(0xFF7EB8F7),  // primary del tema default dark
-            ColorVariant.purple => const Color(0xFFB794D6),        // primary del tema purple dark
+            ColorVariant.defaultTheme =>
+              const Color(0xFF7EB8F7), // primary del tema default dark
+            ColorVariant.purple =>
+              const Color(0xFFB794D6), // primary del tema purple dark
           };
 
           final label = switch (variant) {

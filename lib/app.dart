@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router/app_router.dart';
+import 'core/services/whats_new_service.dart';
 import 'core/theme/app_theme.dart';
 import 'domain/models/release_info.dart';
 import 'providers/providers.dart';
@@ -20,7 +21,8 @@ class NotetonApp extends ConsumerWidget {
       themeMode: themeMode,
       routerConfig: appRouter,
       debugShowCheckedModeBanner: false,
-      builder: (context, child) => _UpdateGate(child: child ?? const SizedBox()),
+      builder: (context, child) =>
+          _UpdateGate(child: child ?? const SizedBox()),
     );
   }
 }
@@ -73,13 +75,7 @@ class _UpdateGateState extends ConsumerState<_UpdateGate> {
   @override
   void initState() {
     super.initState();
-    // Bypass throttle al lancio: vogliamo info fresche per il dialog.
-    // Rispetta il toggle "Abilita aggiornamento" (off → niente check).
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final enabled = await UpdateNotifier.isAutoUpdateEnabled();
-      if (!enabled || !mounted) return;
-      ref.read(updateProvider.notifier).check(force: true);
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _runStartupFlow());
   }
 
   @override
@@ -93,6 +89,87 @@ class _UpdateGateState extends ConsumerState<_UpdateGate> {
       }
     });
     return widget.child;
+  }
+
+  Future<void> _runStartupFlow() async {
+    const whatsNewService = WhatsNewService();
+    final whatsNew = await whatsNewService.getPendingWhatsNew();
+    if (!mounted) return;
+
+    if (whatsNew != null) {
+      await _showWhatsNewDialog(whatsNew);
+      await whatsNewService.markSeen(whatsNew.version);
+    }
+
+    if (!mounted) return;
+    // Bypass throttle al lancio: vogliamo info fresche per il dialog.
+    // Rispetta il toggle "Abilita aggiornamento" (off → niente check).
+    final enabled = await UpdateNotifier.isAutoUpdateEnabled();
+    if (!enabled || !mounted) return;
+    ref.read(updateProvider.notifier).check(force: true);
+  }
+
+  Future<void> _showWhatsNewDialog(WhatsNewInfo info) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.auto_awesome, size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text('Novità in Noteton v${info.version}'),
+                  if (info.isPrerelease)
+                    _BetaBadge(
+                      foreground: Theme.of(ctx).colorScheme.onTertiaryContainer,
+                      background: Theme.of(ctx).colorScheme.tertiaryContainer,
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 360, maxWidth: 420),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (info.publishedAt != null) ...[
+                Text(
+                  'Pubblicato il ${info.release!.formattedDate}',
+                  style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(ctx).colorScheme.outline,
+                      ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Text(
+                    info.changelog,
+                    style: Theme.of(ctx).textTheme.bodyMedium,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Ho capito'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _showUpdateDialog(ReleaseInfo release) async {
