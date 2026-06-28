@@ -1,0 +1,15 @@
+---
+description: Crea un piano operativo prima di implementare
+argument-hint: "[obiettivo o task]"
+---
+Crea un piano operativo per il seguente task: $ARGUMENTS
+
+Se non ho fornito argomenti dopo `/plan`, considera il task corrente discusso in chat; se non è chiaro, fai domande mirate prima di pianificare.
+
+Regole:
+- Non modificare file e non eseguire azioni distruttive.
+- Leggi solo i file necessari per capire contesto, architettura e impatto.
+- Proponi una sequenza breve di passi verificabili.
+- Evidenzia rischi, file probabilmente coinvolti e test/controlli finali.
+- Se il requisito è ambiguo, fai prima domande mirate.
+- Concludi chiedendo conferma prima di procedere con l'implementazione.

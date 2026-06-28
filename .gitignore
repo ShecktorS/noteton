@@ -40,6 +40,11 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Segreti locali — MAI versionare
+.env
+.env.*
+!.env.example
+
 # Firma di release — MAI versionare keystore e password (vivono come GitHub secrets)
 /android/key.properties
 /android/*.p12
@@ -103,3 +108,6 @@ test-results/
 /linux/
 /macos/
 /web/
+
+# Synology Drive sync folders
+.drive_sync/

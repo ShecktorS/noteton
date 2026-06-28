@@ -65,15 +65,13 @@ class _SetlistDetailScreenState extends ConsumerState<SetlistDetailScreen> {
 
   // ── Reorder ─────────────────────────────────────────────────────────────────
 
-  void _onReorder(int oldIndex, int newIndex) {
-    if (newIndex > oldIndex) newIndex--;
+  void _onReorderItem(int oldIndex, int newIndex) {
     setState(() {
       final item = _items.removeAt(oldIndex);
       _items.insert(newIndex, item);
     });
     ref.read(setlistRepositoryProvider).reorderItems(widget.setlistId, _items);
   }
-
 
   // ── Remove selected ──────────────────────────────────────────────────────────
 
@@ -134,13 +132,10 @@ class _SetlistDetailScreenState extends ConsumerState<SetlistDetailScreen> {
             leading: Icon(Icons.remove_circle_outline,
                 color: Theme.of(context).colorScheme.error),
             title: Text('Rimuovi dalla setlist',
-                style:
-                    TextStyle(color: Theme.of(context).colorScheme.error)),
+                style: TextStyle(color: Theme.of(context).colorScheme.error)),
             onTap: () async {
               Navigator.pop(ctx);
-              await ref
-                  .read(setlistRepositoryProvider)
-                  .removeItem(item.id!);
+              await ref.read(setlistRepositoryProvider).removeItem(item.id!);
               await _reload();
               ref
                   .read(setlistRepositoryProvider)
@@ -196,9 +191,7 @@ class _SetlistDetailScreenState extends ConsumerState<SetlistDetailScreen> {
               onPressed: () async {
                 Navigator.pop(ctx, false);
                 final updated = item.copyWith(customStartPage: 0);
-                await ref
-                    .read(setlistRepositoryProvider)
-                    .updateItem(updated);
+                await ref.read(setlistRepositoryProvider).updateItem(updated);
                 await _reload();
               },
               child: const Text('Reimposta'),
@@ -257,9 +250,11 @@ class _SetlistDetailScreenState extends ConsumerState<SetlistDetailScreen> {
           final q = searchCtrl.text.trim().toLowerCase();
           final filtered = q.isEmpty
               ? available
-              : available.where((s) =>
-                  s.title.toLowerCase().contains(q) ||
-                  (s.composerName?.toLowerCase().contains(q) ?? false)).toList();
+              : available
+                  .where((s) =>
+                      s.title.toLowerCase().contains(q) ||
+                      (s.composerName?.toLowerCase().contains(q) ?? false))
+                  .toList();
 
           return DraggableScrollableSheet(
             expand: false,
@@ -279,7 +274,8 @@ class _SetlistDetailScreenState extends ConsumerState<SetlistDetailScreen> {
                       ),
                       const Spacer(),
                       IconButton(
-                        icon: Icon(searchVisible ? Icons.search_off : Icons.search),
+                        icon: Icon(
+                            searchVisible ? Icons.search_off : Icons.search),
                         tooltip: 'Cerca',
                         onPressed: () => setSheetState(() {
                           searchVisible = !searchVisible;
@@ -294,28 +290,28 @@ class _SetlistDetailScreenState extends ConsumerState<SetlistDetailScreen> {
                   ),
                 ),
                 if (searchVisible)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: TextField(
-                    controller: searchCtrl,
-                    autofocus: true,
-                    onChanged: (_) => setSheetState(() {}),
-                    decoration: InputDecoration(
-                      hintText: 'Cerca brano...',
-                      prefixIcon: const Icon(Icons.search, size: 20),
-                      isDense: true,
-                      suffixIcon: searchCtrl.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.close, size: 18),
-                              onPressed: () {
-                                searchCtrl.clear();
-                                setSheetState(() {});
-                              },
-                            )
-                          : null,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: TextField(
+                      controller: searchCtrl,
+                      autofocus: true,
+                      onChanged: (_) => setSheetState(() {}),
+                      decoration: InputDecoration(
+                        hintText: 'Cerca brano...',
+                        prefixIcon: const Icon(Icons.search, size: 20),
+                        isDense: true,
+                        suffixIcon: searchCtrl.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.close, size: 18),
+                                onPressed: () {
+                                  searchCtrl.clear();
+                                  setSheetState(() {});
+                                },
+                              )
+                            : null,
+                      ),
                     ),
                   ),
-                ),
                 const Divider(height: 1),
                 Expanded(
                   child: filtered.isEmpty
@@ -352,7 +348,8 @@ class _SetlistDetailScreenState extends ConsumerState<SetlistDetailScreen> {
                   padding: EdgeInsets.fromLTRB(
                       16, 8, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
                   child: FilledButton.icon(
-                    onPressed: selected.isEmpty ? null : () => Navigator.pop(ctx),
+                    onPressed:
+                        selected.isEmpty ? null : () => Navigator.pop(ctx),
                     icon: const Icon(Icons.add),
                     label: Text(selected.isEmpty
                         ? 'Seleziona brani'
@@ -439,7 +436,7 @@ class _SetlistDetailScreenState extends ConsumerState<SetlistDetailScreen> {
               : ReorderableListView.builder(
                   padding: const EdgeInsets.only(bottom: 80),
                   itemCount: _items.length,
-                  onReorder: _inSelectionMode ? (_, __) {} : _onReorder,
+                  onReorderItem: _inSelectionMode ? (_, __) {} : _onReorderItem,
                   itemBuilder: (context, i) {
                     final item = _items[i];
                     final song = item.song!;
