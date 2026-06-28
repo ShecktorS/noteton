@@ -69,13 +69,30 @@ class _BetaBadge extends StatelessWidget {
   }
 }
 
-class _UpdateGateState extends ConsumerState<_UpdateGate> {
+class _UpdateGateState extends ConsumerState<_UpdateGate>
+    with WidgetsBindingObserver {
   bool _dialogShownThisSession = false;
+  bool _startupFlowRunning = false;
+  bool _updateCheckStarted = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _runStartupFlow());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _runStartupFlow());
+    }
   }
 
   @override
@@ -92,28 +109,41 @@ class _UpdateGateState extends ConsumerState<_UpdateGate> {
   }
 
   Future<void> _runStartupFlow() async {
-    const whatsNewService = WhatsNewService();
-    final whatsNew = await whatsNewService.getPendingWhatsNew();
-    if (!mounted) return;
+    if (_startupFlowRunning || !mounted) return;
+    _startupFlowRunning = true;
 
-    if (whatsNew != null) {
-      await _showWhatsNewDialog(whatsNew);
-      await whatsNewService.markSeen(whatsNew.version);
+    try {
+      const whatsNewService = WhatsNewService();
+      final whatsNew = await whatsNewService.getPendingWhatsNew();
+      if (!mounted) return;
+
+      if (whatsNew != null) {
+        // Lascia completare il primo layout: su alcuni device Android il
+        // rientro dall'installer avviene mentre la route iniziale si sta ancora
+        // stabilizzando e un dialog immediato può non essere percepibile.
+        await Future<void>.delayed(const Duration(milliseconds: 350));
+        if (!mounted) return;
+        await _showWhatsNewDialog(whatsNew);
+        await whatsNewService.markSeen(whatsNew.version);
+      }
+
+      if (!mounted || _updateCheckStarted) return;
+      _updateCheckStarted = true;
+      // Bypass throttle al lancio: vogliamo info fresche per il dialog.
+      // Rispetta il toggle "Abilita aggiornamento" (off → niente check).
+      final enabled = await UpdateNotifier.isAutoUpdateEnabled();
+      if (!enabled || !mounted) return;
+      ref.read(updateProvider.notifier).check(force: true);
+    } finally {
+      _startupFlowRunning = false;
     }
-
-    if (!mounted) return;
-    // Bypass throttle al lancio: vogliamo info fresche per il dialog.
-    // Rispetta il toggle "Abilita aggiornamento" (off → niente check).
-    final enabled = await UpdateNotifier.isAutoUpdateEnabled();
-    if (!enabled || !mounted) return;
-    ref.read(updateProvider.notifier).check(force: true);
   }
 
   Future<void> _showWhatsNewDialog(WhatsNewInfo info) async {
     if (!mounted) return;
     await showDialog<void>(
       context: context,
-      barrierDismissible: true,
+      barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         title: Row(
           children: [
