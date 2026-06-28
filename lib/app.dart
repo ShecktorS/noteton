@@ -11,10 +11,12 @@ class NotetonApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
+    final colorVariant = ref.watch(colorVariantProvider);
+    
     return MaterialApp.router(
       title: 'Noteton',
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
+      theme: AppTheme.light(colorVariant),
+      darkTheme: AppTheme.dark(colorVariant),
       themeMode: themeMode,
       routerConfig: appRouter,
       debugShowCheckedModeBanner: false,

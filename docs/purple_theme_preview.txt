@@ -1,0 +1,159 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                    NOTETON - PURPLE THEME (Amethyst)                       ║
+║                          Visual Preview (ASCII)                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│ DARK MODE                                                                │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ╔═══════════════════════════════════════════════════════════════════╗  │
+│  ║ 🎵 Noteton                                              ☰ ⋮       ║  │  AppBar
+│  ║                                                                   ║  │  (#1A1420)
+│  ╚═══════════════════════════════════════════════════════════════════╝  │
+│                                                                          │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │ 🎼 Sonata n.14 "Chiaro di Luna"                   ⋮             │    │  Card
+│  │ Ludwig van Beethoven                                            │    │  (#261E2F)
+│  │ 🏷 Classica  🎹 Piano                                            │    │
+│  │                                                        ▶️         │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                                                                          │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │ 🎻 Il Barbiere di Siviglia                        ⋮             │    │
+│  │ Gioachino Rossini                                               │    │
+│  │ 🏷 Opera  🎭 Vocale                                              │    │
+│  │                                                        ▶️         │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                                                                          │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │ 🎺 Rhapsody in Blue                               ⋮             │    │
+│  │ George Gershwin                                                 │    │
+│  │ 🏷 Jazz  🎹 Orchestrale                                          │    │
+│  │                                                        ▶️         │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                                                                          │
+│                                                                    ⊕     │  FAB
+│                                                                 (#B794D6)│  (Primary)
+│  ╔═══════════════════════════════════════════════════════════════════╗  │
+│  ║  📚 Libreria    📋 Setlist    📁 Raccolte    ⚙️ Impostazioni     ║  │  NavBar
+│  ║     [ACTIVE]                                                     ║  │  (#1F1726)
+│  ╚═══════════════════════════════════════════════════════════════════╝  │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│ SETTINGS SCREEN - Selezione Variante Colore                             │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  Aspetto                                                                 │
+│  ┌────────────────────────────────────────────────────────────────────┐ │
+│  │  ☀️ Chiaro    🔄 Sistema    🌙 Scuro                               │ │  SegmentedButton
+│  │              [SELECTED]                                            │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
+│                                                                          │
+│  Variante colore                                                         │
+│  ┌─────────────────────────────────────────────────────────────┐        │
+│  │  🔵 Midnight      💜 Amethyst                                │        │  FilterChips
+│  │                  [SELECTED]                                  │        │
+│  └─────────────────────────────────────────────────────────────┘        │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+
+
+╔════════════════════════════════════════════════════════════════════════════╗
+║                          COLOR PALETTE REFERENCE                           ║
+╠════════════════════════════════════════════════════════════════════════════╣
+║                                                                            ║
+║  🎨 PURPLE THEME (Dark Mode)                                              ║
+║  ┌────────────────────────────────────────────────────────────────────┐   ║
+║  │ Primary:              #B794D6  ██████  (Viola chiaro - testi/icone) │   ║
+║  │ Primary Container:    #6A4A80  ██████  (Viola medio - selezioni)    │   ║
+║  │ Secondary:            #FFB74D  ██████  (Ambra - accenti caldi)      │   ║
+║  │ Tertiary:             #4DB6AC  ██████  (Teal - indicatori)          │   ║
+║  │ Surface:              #1A1420  ██████  (Background principale)      │   ║
+║  │ Surface Container:    #261E2F  ██████  (Card, dialog)               │   ║
+║  │ Surface Cont. High:   #2D243A  ██████  (Input, chip)                │   ║
+║  │ Error:                #CF4545  ██████  (Errori - preservato)        │   ║
+║  └────────────────────────────────────────────────────────────────────┘   ║
+║                                                                            ║
+║  🎨 DEFAULT THEME (Dark Mode) - per confronto                             ║
+║  ┌────────────────────────────────────────────────────────────────────┐   ║
+║  │ Primary:              #7EB8F7  ██████  (Blu chiaro)                 │   ║
+║  │ Secondary:            #D4A853  ██████  (Oro)                        │   ║
+║  │ Tertiary:             #8BC9A0  ██████  (Verde)                      │   ║
+║  │ Surface:              #121820  ██████  (Background blu scuro)       │   ║
+║  └────────────────────────────────────────────────────────────────────┘   ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+
+╔════════════════════════════════════════════════════════════════════════════╗
+║                         DESIGN PRINCIPLES APPLIED                          ║
+╠════════════════════════════════════════════════════════════════════════════╣
+║                                                                            ║
+║  ✓ Material Design 3 ColorScheme system                                   ║
+║  ✓ WCAG AA accessibility (contrast 6.79:1 seed color)                     ║
+║  ✓ Complementary palette (viola + ambra = warmth balance)                 ║
+║  ✓ Triadic harmony (viola + teal tertiary)                                ║
+║  ✓ Custom dark surfaces con tint viola (coerenza cromatica)               ║
+║  ✓ Separation of concerns (brightness ≠ color variant)                    ║
+║  ✓ Scalable architecture (facile aggiungere blue/green/amber)             ║
+║  ✓ Zero breaking changes (default theme preservato)                       ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+
+╔════════════════════════════════════════════════════════════════════════════╗
+║                           USER EXPERIENCE FLOW                             ║
+╠════════════════════════════════════════════════════════════════════════════╣
+║                                                                            ║
+║  1. User apre Settings                                                     ║
+║  2. Vede sezione "Aspetto" con SegmentedButton (Light/System/Dark)        ║
+║  3. Sotto, nuova sezione "Variante colore" con chip:                       ║
+║     • 🔵 Midnight (cerchio blu + label)                                    ║
+║     • 💜 Amethyst (cerchio viola + label)                                  ║
+║  4. Tap su "Amethyst" → cambio ISTANTANEO di tutto il tema                ║
+║  5. Persistenza automatica in SharedPreferences                            ║
+║  6. Al prossimo avvio → tema purple viene riapplicato                      ║
+║                                                                            ║
+║  COMBINAZIONI POSSIBILI:                                                   ║
+║  • Light + Midnight   (tema originale chiaro)                              ║
+║  • Light + Amethyst   (viola chiaro)                                       ║
+║  • Dark + Midnight    (tema originale scuro)   ← DEFAULT                   ║
+║  • Dark + Amethyst    (viola scuro)             ← NUOVO                    ║
+║  • System + qualsiasi (segue OS preference)                                ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│ TECHNICAL IMPLEMENTATION SUMMARY                                         │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  📁 File modificati/creati:                                              │
+│  • lib/core/theme/color_palettes.dart        [NEW]                      │
+│  • lib/core/theme/app_theme.dart             [MODIFIED]                 │
+│  • lib/providers/providers.dart              [MODIFIED]                 │
+│  • lib/app.dart                              [MODIFIED]                 │
+│  • lib/presentation/settings/settings_screen.dart [MODIFIED]            │
+│  • docs/purple_theme_validation.md          [NEW]                      │
+│  • docs/purple_theme_preview.txt            [NEW]                      │
+│  • scripts/verify_purple_theme.sh           [NEW]                      │
+│                                                                          │
+│  🔧 Componenti architetturali:                                           │
+│  • ColorPalettes (static class con palette constants)                    │
+│  • ColorVariant (enum: defaultTheme, purple)                             │
+│  • DarkSurfaceColors (value class per superfici custom)                  │
+│  • ColorVariantNotifier (StateNotifier + SharedPreferences)              │
+│  • _ColorVariantSelector (ConsumerWidget con FilterChips)                │
+│                                                                          │
+│  📊 Lines of code:                                                       │
+│  • color_palettes.dart:        ~100 LOC                                  │
+│  • app_theme.dart delta:       ~40 LOC                                   │
+│  • providers.dart delta:       ~30 LOC                                   │
+│  • settings_screen.dart delta: ~70 LOC                                   │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+

@@ -1,38 +1,50 @@
 import 'package:flutter/material.dart';
+import 'color_palettes.dart';
+
+/// Varianti colore disponibili per i temi Noteton
+enum ColorVariant {
+  /// Tema originale Midnight Ink (blu scuro)
+  defaultTheme,
+  
+  /// Tema Amethyst (violetto profondo)
+  purple,
+}
 
 class AppTheme {
   AppTheme._();
 
-  // ── Colori identitari ────────────────────────────────────────────────────────
-  static const Color _seedColor = Color(0xFF1A2F4A);      // Midnight Ink
-  static const Color _goldAccent = Color(0xFFD4A853);     // Gold Leaf
-  static const Color _greenTertiary = Color(0xFF8BC9A0);  // Verde "in chiave"
+  // ── Dark theme ───────────────────────────────────────────────────────────────
+  static ThemeData dark([ColorVariant variant = ColorVariant.defaultTheme]) {
+    // Seleziona palette in base alla variante
+    final (seedColor, secondaryColor, tertiaryColor, surfaces) = switch (variant) {
+      ColorVariant.defaultTheme => (
+        ColorPalettes.defaultSeed,
+        ColorPalettes.defaultGoldAccent,
+        ColorPalettes.defaultGreenTertiary,
+        ColorPalettes.defaultDarkSurfaces,
+      ),
+      ColorVariant.purple => (
+        ColorPalettes.purpleSeed,
+        ColorPalettes.purpleAmberAccent,
+        ColorPalettes.purpleTealTertiary,
+        ColorPalettes.purpleDarkSurfaces,
+      ),
+    };
 
-  // ── Dark theme (default) ─────────────────────────────────────────────────────
-  static ThemeData get dark {
     final base = ColorScheme.fromSeed(
-      seedColor: _seedColor,
+      seedColor: seedColor,
+      secondary: secondaryColor,
+      tertiary: tertiaryColor,
       brightness: Brightness.dark,
     );
+    
     final cs = base.copyWith(
-      surface: const Color(0xFF121820),
-      surfaceContainerLowest: const Color(0xFF0D1117),
-      surfaceContainerLow: const Color(0xFF161D26),
-      surfaceContainer: const Color(0xFF1E2833),
-      surfaceContainerHigh: const Color(0xFF243040),
-      surfaceContainerHighest: const Color(0xFF2A3544),
-      primary: const Color(0xFF7EB8F7),
-      onPrimary: const Color(0xFF003258),
-      primaryContainer: const Color(0xFF004880),
-      onPrimaryContainer: const Color(0xFFD2E4FF),
-      secondary: _goldAccent,
-      onSecondary: const Color(0xFF3A2800),
-      secondaryContainer: const Color(0xFF533C00),
-      onSecondaryContainer: const Color(0xFFFFDE98),
-      tertiary: _greenTertiary,
-      onTertiary: const Color(0xFF003920),
-      tertiaryContainer: const Color(0xFF00522F),
-      onTertiaryContainer: const Color(0xFFA8F5BC),
+      surface: surfaces.surface,
+      surfaceContainerLowest: surfaces.surfaceContainerLowest,
+      surfaceContainerLow: surfaces.surfaceContainerLow,
+      surfaceContainer: surfaces.surfaceContainer,
+      surfaceContainerHigh: surfaces.surfaceContainerHigh,
+      surfaceContainerHighest: surfaces.surfaceContainerHighest,
       error: const Color(0xFFCF4545),
       onError: Colors.white,
     );
@@ -183,11 +195,25 @@ class AppTheme {
   }
 
   // ── Light theme ──────────────────────────────────────────────────────────────
-  static ThemeData get light {
+  static ThemeData light([ColorVariant variant = ColorVariant.defaultTheme]) {
+    // Seleziona palette in base alla variante
+    final (seedColor, secondaryColor, tertiaryColor) = switch (variant) {
+      ColorVariant.defaultTheme => (
+        ColorPalettes.defaultSeed,
+        ColorPalettes.defaultGoldAccent,
+        ColorPalettes.defaultGreenTertiary,
+      ),
+      ColorVariant.purple => (
+        ColorPalettes.purpleSeed,
+        ColorPalettes.purpleAmberAccent,
+        ColorPalettes.purpleTealTertiary,
+      ),
+    };
+
     final cs = ColorScheme.fromSeed(
-      seedColor: _seedColor,
-      secondary: _goldAccent,
-      tertiary: _greenTertiary,
+      seedColor: seedColor,
+      secondary: secondaryColor,
+      tertiary: tertiaryColor,
       brightness: Brightness.light,
     );
     return ThemeData(

@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 import '../core/services/metronome_service.dart';
 import '../core/services/update_service.dart';
+import '../core/theme/app_theme.dart';
 import '../data/database/database_helper.dart';
 import '../data/repositories/song_repository.dart';
 import '../data/repositories/setlist_repository.dart';
@@ -217,6 +218,36 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
 
 final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>(
   (_) => ThemeModeNotifier(),
+);
+
+// ── Color variant ────────────────────────────────────────────────────────────
+class ColorVariantNotifier extends StateNotifier<ColorVariant> {
+  static const _key = 'color_variant';
+
+  ColorVariantNotifier() : super(ColorVariant.defaultTheme) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final value = prefs.getString(_key);
+    if (value != null) {
+      state = ColorVariant.values.firstWhere(
+        (v) => v.name == value,
+        orElse: () => ColorVariant.defaultTheme,
+      );
+    }
+  }
+
+  Future<void> setVariant(ColorVariant variant) async {
+    state = variant;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_key, variant.name);
+  }
+}
+
+final colorVariantProvider = StateNotifierProvider<ColorVariantNotifier, ColorVariant>(
+  (_) => ColorVariantNotifier(),
 );
 
 // ── Update state ──────────────────────────────────────────────────────────────

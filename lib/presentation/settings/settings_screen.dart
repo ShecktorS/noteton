@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../core/exceptions/backup_exceptions.dart';
+import '../../core/theme/app_theme.dart';
 import '../../domain/models/import_report.dart';
 import '../../domain/models/tag.dart';
 import '../../providers/providers.dart';
@@ -381,6 +382,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ref.read(themeModeProvider.notifier).setMode(selection.first),
                 ),
               ),
+              const SizedBox(height: 8),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Text(
+                  'Variante colore',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+              ),
+              const _ColorVariantSelector(),
               const Divider(),
               const _SectionHeader('Bluetooth'),
               ListTile(
@@ -637,6 +647,70 @@ class _TagsSectionState extends ConsumerState<_TagsSection> {
             onTap: _createTag,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Selettore variante colore con anteprima chip colorati
+class _ColorVariantSelector extends ConsumerWidget {
+  const _ColorVariantSelector();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentVariant = ref.watch(colorVariantProvider);
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 8,
+        children: ColorVariant.values.map((variant) {
+          final isSelected = variant == currentVariant;
+          
+          // Genera anteprima colore dal seed della variante
+          final previewColor = switch (variant) {
+            ColorVariant.defaultTheme => const Color(0xFF7EB8F7),  // primary del tema default dark
+            ColorVariant.purple => const Color(0xFFB794D6),        // primary del tema purple dark
+          };
+          
+          final label = switch (variant) {
+            ColorVariant.defaultTheme => 'Midnight',
+            ColorVariant.purple => 'Amethyst',
+          };
+
+          return FilterChip(
+            selected: isSelected,
+            label: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 16,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: previewColor,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: theme.colorScheme.outline.withValues(alpha: 0.3),
+                      width: 1,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(label),
+              ],
+            ),
+            onSelected: (_) {
+              ref.read(colorVariantProvider.notifier).setVariant(variant);
+            },
+            selectedColor: theme.colorScheme.primaryContainer,
+            checkmarkColor: theme.colorScheme.onPrimaryContainer,
+            side: isSelected
+                ? BorderSide(color: theme.colorScheme.primary, width: 1.5)
+                : null,
+          );
+        }).toList(),
       ),
     );
   }
