@@ -2,19 +2,29 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:noteton/data/database/database_helper.dart';
 
+bool _sqfliteFfiReady = false;
+
+void _ensureSqfliteFfiReady() {
+  sqfliteFfiInit();
+  if (!_sqfliteFfiReady) {
+    databaseFactory = databaseFactoryFfi;
+    _sqfliteFfiReady = true;
+  }
+}
+
 /// Call once per test file in setUpAll.
 void initTestDatabase() {
   setUpAll(() async {
-    sqfliteFfiInit();
-    databaseFactory = databaseFactoryFfi;
+    _ensureSqfliteFfiReady();
   });
 }
 
 /// Creates a fresh in-memory database with the full Noteton schema.
 /// Inject it into DatabaseHelper.instance.setTestDatabase(db) in setUp.
 Future<Database> openTestDatabase() async {
-  sqfliteFfiInit();
-  databaseFactory = databaseFactoryFfi;
+  _ensureSqfliteFfiReady();
+  await DatabaseHelper.instance.closeAndReset();
+  addTearDown(DatabaseHelper.instance.closeAndReset);
 
   final db = await databaseFactory.openDatabase(
     inMemoryDatabasePath,
@@ -112,10 +122,10 @@ Future<Database> openTestDatabase() async {
         ''');
 
         // Indici (allineati a database_helper.dart:179-184)
-        await db.execute(
-            'CREATE INDEX idx_songs_composer ON songs(composer_id)');
-        await db.execute(
-            'CREATE INDEX idx_song_tags_song ON song_tags(song_id)');
+        await db
+            .execute('CREATE INDEX idx_songs_composer ON songs(composer_id)');
+        await db
+            .execute('CREATE INDEX idx_song_tags_song ON song_tags(song_id)');
         await db.execute(
             'CREATE INDEX idx_setlist_items_setlist ON setlist_items(setlist_id)');
         await db.execute(
