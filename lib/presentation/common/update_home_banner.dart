@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme/brand.dart';
+import '../../core/utils/changelog_parser.dart';
 import '../../domain/models/release_info.dart';
 import '../../providers/providers.dart';
+import 'brand/brand_motifs.dart';
+import 'brand/changelog_view.dart';
 
 /// Card "aggiornamento disponibile" da mostrare in cima alla libreria.
+/// Segue la linea di brand di `docs/brand.md`: stanghetta d'accento,
+/// nota sul pentagramma, voci del changelog con testa di nota.
 /// Visibile solo quando:
 ///   - lo stato update è [UpdateAvailable]
 ///   - il toggle auto-update è ON (altrimenti l'utente non vuole essere
@@ -12,7 +18,7 @@ import '../../providers/providers.dart';
 ///   - l'utente non ha dismesso questa versione nella sessione corrente
 ///
 /// Tap su X → dismiss per la sessione (ricompare al prossimo lancio).
-/// Tap su "Aggiorna ora" → avvia download + apre progress dialog.
+/// Tap su "Aggiorna" → avvia download + apre progress dialog.
 /// Tap su "Leggi tutto" → mostra dialog completo con changelog.
 class UpdateHomeBanner extends ConsumerWidget {
   const UpdateHomeBanner({super.key});
@@ -47,76 +53,40 @@ class UpdateHomeBanner extends ConsumerWidget {
     );
   }
 
-  // ── Dialog completo (clone leggero del gate dialog) ─────────────────────────
+  // ── Dialog completo ─────────────────────────────────────────────────────────
 
   void _showFullDialog(BuildContext context, WidgetRef ref, ReleaseInfo r) {
     showDialog<void>(
       context: context,
       barrierDismissible: true,
-      builder: (ctx) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.system_update, size: 22),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Text('Aggiornamento v${r.version}'),
-                  if (r.prerelease)
-                    _BetaBadge(
-                      foreground: Theme.of(ctx).colorScheme.onTertiaryContainer,
-                      background: Theme.of(ctx).colorScheme.tertiaryContainer,
-                    ),
-                ],
+      builder: (ctx) {
+        final theme = Theme.of(ctx);
+        return AlertDialog(
+          title: _ReleaseHeading(release: r),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 360, maxWidth: 420),
+            child: SingleChildScrollView(child: ChangelogView(r.changelog)),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              style: TextButton.styleFrom(
+                foregroundColor: theme.colorScheme.onSurfaceVariant,
               ),
+              child: const Text('Chiudi'),
+            ),
+            FilledButton.icon(
+              icon: const Icon(Icons.download_rounded, size: 18),
+              label: const Text('Aggiorna ora'),
+              onPressed: () {
+                Navigator.pop(ctx);
+                ref.read(updateProvider.notifier).downloadAndInstall(r);
+                _showDownloadDialog(context, ref);
+              },
             ),
           ],
-        ),
-        content: ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 360, maxWidth: 420),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Pubblicato il ${r.formattedDate}',
-                style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(ctx).colorScheme.outline,
-                    ),
-              ),
-              const SizedBox(height: 12),
-              Flexible(
-                child: SingleChildScrollView(
-                  child: Text(
-                    r.changelog.trim().isEmpty
-                        ? 'Nessuna nota di rilascio fornita.'
-                        : r.changelog.trim(),
-                    style: Theme.of(ctx).textTheme.bodyMedium,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Chiudi'),
-          ),
-          FilledButton.icon(
-            icon: const Icon(Icons.download, size: 18),
-            label: const Text('Aggiorna ora'),
-            onPressed: () {
-              Navigator.pop(ctx);
-              ref.read(updateProvider.notifier).downloadAndInstall(r);
-              _showDownloadDialog(context, ref);
-            },
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -151,42 +121,128 @@ class UpdateHomeBanner extends ConsumerWidget {
   }
 }
 
-class _BetaBadge extends StatelessWidget {
-  final Color foreground;
-  final Color background;
+/// Intestazione condivisa da banner e dialog: occhiello "Nuova versione"
+/// (+ BETA), nome e versione, data di pubblicazione.
+class _ReleaseHeading extends StatelessWidget {
+  final ReleaseInfo release;
 
-  const _BetaBadge({
-    required this.foreground,
-    required this.background,
-  });
+  const _ReleaseHeading({required this.release});
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        child: Text(
-          'BETA',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: foreground,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.4,
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        BrandEyebrow(
+          'Nuova versione',
+          trailing: release.prerelease ? const BrandBetaBadge() : null,
+        ),
+        const SizedBox(height: NotetonBrand.space1),
+        Text(
+          'Noteton ${release.version}',
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: theme.colorScheme.onSurface,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.2,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          'Pubblicata il ${release.formattedDate}',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Simbolo del banner: nota musicale con una piccola freccia d'accento
+/// ("la nota che sale" = nuova versione).
+class _RisingNoteMark extends StatelessWidget {
+  const _RisingNoteMark();
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final accent = NotetonBrand.accent(cs);
+    return ExcludeSemantics(
+      child: SizedBox(
+        width: 44,
+        height: 44,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: cs.primaryContainer,
+                borderRadius: BorderRadius.circular(NotetonBrand.radiusMd),
               ),
+              clipBehavior: Clip.antiAlias,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // La nota poggia su un frammento di pentagramma.
+                  StaffLines(
+                    gap: 6,
+                    color: cs.onPrimaryContainer.withValues(alpha: 0.22),
+                  ),
+                  Icon(
+                    Icons.music_note_rounded,
+                    size: 24,
+                    color: cs.onPrimaryContainer,
+                  ),
+                ],
+              ),
+            ),
+            Positioned(
+              right: -4,
+              bottom: -4,
+              child: Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: accent,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: _cardColor(cs), width: 2),
+                ),
+                child: Icon(
+                  Icons.arrow_upward_rounded,
+                  size: 12,
+                  color: cs.brightness == Brightness.dark
+                      ? cs.onSecondary
+                      : Colors.white,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
+Color _cardColor(ColorScheme cs) => cs.brightness == Brightness.dark
+    ? cs.surfaceContainerHigh
+    : cs.surfaceContainerLow;
+
 class _BannerCard extends StatelessWidget {
   final ReleaseInfo release;
   final VoidCallback onDismiss;
   final VoidCallback onUpdate;
   final VoidCallback onReadMore;
+
+  /// Voci del changelog mostrate in anteprima.
+  static const _maxHighlights = 2;
+
+  /// Rientro del contenuto: allineato al testo dell'intestazione.
+  static const _contentIndent = 44.0 + NotetonBrand.space4;
 
   const _BannerCard({
     required this.release,
@@ -198,145 +254,122 @@ class _BannerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // Anteprima changelog: max 3 righe del body markdown (puliamo i ###)
-    final preview = _previewChangelog(release.changelog);
+    final cs = theme.colorScheme;
+    final accent = NotetonBrand.accent(cs);
+    final highlights = ChangelogParser.highlights(release.changelog);
+    final shown = highlights.take(_maxHighlights).toList();
+    final hidden = highlights.length - shown.length;
 
     return Card(
-      color: theme.colorScheme.primaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
+      color: _cardColor(cs),
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(NotetonBrand.radiusLg),
+        side: cs.brightness == Brightness.light
+            ? BorderSide(color: cs.outlineVariant)
+            : BorderSide.none,
+      ),
+      child: Stack(
+        children: [
+          // Stanghetta d'accento sul bordo sinistro.
+          Positioned(
+            left: 0,
+            top: NotetonBrand.space4,
+            bottom: NotetonBrand.space4,
+            width: NotetonBrand.barlineWidth,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: accent,
+                borderRadius: const BorderRadius.horizontal(
+                  right: Radius.circular(NotetonBrand.barlineWidth),
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              NotetonBrand.space5,
+              NotetonBrand.space4,
+              NotetonBrand.space2,
+              NotetonBrand.space3,
+            ),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.onPrimaryContainer
-                        .withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    Icons.system_update_outlined,
-                    size: 20,
-                    color: theme.colorScheme.onPrimaryContainer,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const _RisingNoteMark(),
+                    const SizedBox(width: NotetonBrand.space4),
+                    Expanded(child: _ReleaseHeading(release: release)),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 20),
+                      color: cs.onSurfaceVariant,
+                      tooltip: 'Più tardi',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: onDismiss,
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 4,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          Text(
-                            'Aggiornamento v${release.version} disponibile',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: theme.colorScheme.onPrimaryContainer,
-                              fontWeight: FontWeight.w600,
+                if (shown.isNotEmpty) ...[
+                  const SizedBox(height: NotetonBrand.space3),
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      left: _contentIndent,
+                      right: NotetonBrand.space3,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final h in shown) ...[
+                          NoteBulletItem(
+                            h,
+                            maxLines: 1,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: cs.onSurface,
+                              height: 1.4,
                             ),
                           ),
-                          if (release.prerelease)
-                            _BetaBadge(
-                              foreground: theme.colorScheme.onPrimaryContainer,
-                              background: theme.colorScheme.onPrimaryContainer
-                                  .withValues(alpha: 0.12),
-                            ),
+                          const SizedBox(height: NotetonBrand.space1),
                         ],
-                      ),
-                      Text(
-                        'Pubblicato il ${release.formattedDate}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onPrimaryContainer
-                              .withValues(alpha: 0.7),
-                        ),
-                      ),
-                    ],
+                        if (hidden > 0)
+                          Text(
+                            hidden == 1
+                                ? '+1 altra novità'
+                                : '+$hidden altre novità',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close, size: 20),
-                  color: theme.colorScheme.onPrimaryContainer,
-                  tooltip: 'Più tardi',
-                  onPressed: onDismiss,
+                ],
+                const SizedBox(height: NotetonBrand.space2),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: onReadMore,
+                      style: TextButton.styleFrom(
+                        foregroundColor: cs.onSurfaceVariant,
+                      ),
+                      child: const Text('Leggi tutto'),
+                    ),
+                    const SizedBox(width: NotetonBrand.space2),
+                    FilledButton.icon(
+                      icon: const Icon(Icons.download_rounded, size: 18),
+                      label: const Text('Aggiorna'),
+                      onPressed: onUpdate,
+                    ),
+                    const SizedBox(width: NotetonBrand.space2),
+                  ],
                 ),
               ],
             ),
-            // Anteprima changelog
-            if (preview.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.only(left: 48, right: 8),
-                child: Text(
-                  preview,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onPrimaryContainer
-                        .withValues(alpha: 0.85),
-                    height: 1.4,
-                  ),
-                ),
-              ),
-            ],
-            // Actions
-            const SizedBox(height: 10),
-            Padding(
-              padding: const EdgeInsets.only(left: 40),
-              child: Row(
-                children: [
-                  TextButton(
-                    onPressed: onReadMore,
-                    style: TextButton.styleFrom(
-                      foregroundColor:
-                          theme.colorScheme.onPrimaryContainer,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    child: const Text('Leggi tutto'),
-                  ),
-                  const Spacer(),
-                  FilledButton.icon(
-                    icon: const Icon(Icons.download, size: 18),
-                    label: const Text('Aggiorna ora'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor:
-                          theme.colorScheme.onPrimaryContainer,
-                      foregroundColor: theme.colorScheme.primaryContainer,
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    onPressed: onUpdate,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
-  }
-
-  /// Estrae un'anteprima leggibile dal changelog markdown della release.
-  /// Rimuove header `##`, `###`, blockquote `>`, prende le prime righe non vuote.
-  String _previewChangelog(String md) {
-    final lines = md
-        .split('\n')
-        .map((l) => l.trim())
-        .where((l) => l.isNotEmpty)
-        .where((l) => !l.startsWith('#'))
-        .where((l) => !l.startsWith('>'))
-        .where((l) => !l.startsWith('---'))
-        .toList();
-    if (lines.isEmpty) return '';
-    final preview = lines.take(4).join(' ');
-    return preview;
   }
 }
