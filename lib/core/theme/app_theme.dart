@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'brand.dart';
 import 'color_palettes.dart';
 
 /// Varianti colore disponibili per i temi Noteton
@@ -235,7 +236,7 @@ class AppTheme {
       cardTheme: CardThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(NotetonBrand.radiusLg),
           side: BorderSide(color: cs.outlineVariant, width: 1),
         ),
         margin: EdgeInsets.zero,
@@ -260,7 +261,9 @@ class AppTheme {
         showDragHandle: true,
       ),
       dialogTheme: DialogThemeData(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(NotetonBrand.radiusXl),
+        ),
         titleTextStyle: TextStyle(
           color: cs.onSurface,
           fontSize: 20,
