@@ -14,6 +14,7 @@ import '../../domain/models/tag.dart';
 import '../../domain/models/update_channel.dart';
 import '../../providers/providers.dart';
 import '../common/app_bottom_nav.dart';
+import '../common/release_dialogs.dart';
 import 'auto_update_screen.dart';
 import 'diagnostic_screen.dart';
 import 'msb_import_screen.dart';
@@ -368,50 +369,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     Navigator.of(context, rootNavigator: true).pop();
 
     if (!mounted) return;
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.new_releases_outlined, size: 22),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Text('Novità v${info.version}'),
-                  if (info.isPrerelease)
-                    Chip(
-                      label: const Text('BETA'),
-                      visualDensity: VisualDensity.compact,
-                      backgroundColor:
-                          Theme.of(ctx).colorScheme.tertiaryContainer,
-                      labelStyle: TextStyle(
-                        color: Theme.of(ctx).colorScheme.onTertiaryContainer,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        content: ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 360, maxWidth: 420),
-          child: SingleChildScrollView(
-            child: Text(info.changelog),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Chiudi'),
-          ),
-        ],
-      ),
-    );
+    await showWhatsNewDialog(context, info);
   }
 
   @override

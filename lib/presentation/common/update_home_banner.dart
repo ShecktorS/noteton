@@ -7,6 +7,7 @@ import '../../domain/models/release_info.dart';
 import '../../providers/providers.dart';
 import 'brand/brand_motifs.dart';
 import 'brand/changelog_view.dart';
+import 'release_dialogs.dart';
 
 /// Card "aggiornamento disponibile" da mostrare in cima alla libreria.
 /// Segue la linea di brand di `docs/brand.md`: stanghetta d'accento,
@@ -56,36 +57,12 @@ class UpdateHomeBanner extends ConsumerWidget {
   // ── Dialog completo ─────────────────────────────────────────────────────────
 
   void _showFullDialog(BuildContext context, WidgetRef ref, ReleaseInfo r) {
-    showDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      builder: (ctx) {
-        final theme = Theme.of(ctx);
-        return AlertDialog(
-          title: _ReleaseHeading(release: r),
-          content: ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 360, maxWidth: 420),
-            child: SingleChildScrollView(child: ChangelogView(r.changelog)),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              style: TextButton.styleFrom(
-                foregroundColor: theme.colorScheme.onSurfaceVariant,
-              ),
-              child: const Text('Chiudi'),
-            ),
-            FilledButton.icon(
-              icon: const Icon(Icons.download_rounded, size: 18),
-              label: const Text('Aggiorna ora'),
-              onPressed: () {
-                Navigator.pop(ctx);
-                ref.read(updateProvider.notifier).downloadAndInstall(r);
-                _showDownloadDialog(context, ref);
-              },
-            ),
-          ],
-        );
+    showReleaseDialog(
+      context,
+      release: r,
+      onUpdate: () {
+        ref.read(updateProvider.notifier).downloadAndInstall(r);
+        _showDownloadDialog(context, ref);
       },
     );
   }
@@ -117,46 +94,6 @@ class UpdateHomeBanner extends ConsumerWidget {
           );
         },
       ),
-    );
-  }
-}
-
-/// Intestazione condivisa da banner e dialog: occhiello "Nuova versione"
-/// (+ BETA), nome e versione, data di pubblicazione.
-class _ReleaseHeading extends StatelessWidget {
-  final ReleaseInfo release;
-
-  const _ReleaseHeading({required this.release});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        BrandEyebrow(
-          'Nuova versione',
-          trailing: release.prerelease ? const BrandBetaBadge() : null,
-        ),
-        const SizedBox(height: NotetonBrand.space1),
-        Text(
-          'Noteton ${release.version}',
-          style: theme.textTheme.titleMedium?.copyWith(
-            color: theme.colorScheme.onSurface,
-            fontWeight: FontWeight.w600,
-            letterSpacing: -0.2,
-            fontFeatures: const [FontFeature.tabularFigures()],
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          'Pubblicata il ${release.formattedDate}',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ],
     );
   }
 }
@@ -301,7 +238,14 @@ class _BannerCard extends StatelessWidget {
                   children: [
                     const _RisingNoteMark(),
                     const SizedBox(width: NotetonBrand.space4),
-                    Expanded(child: _ReleaseHeading(release: release)),
+                    Expanded(
+                      child: ReleaseHeading(
+                        eyebrow: 'Nuova versione',
+                        title: 'Noteton ${release.version}',
+                        subtitle: 'Pubblicata il ${release.formattedDate}',
+                        prerelease: release.prerelease,
+                      ),
+                    ),
                     IconButton(
                       icon: const Icon(Icons.close_rounded, size: 20),
                       color: cs.onSurfaceVariant,

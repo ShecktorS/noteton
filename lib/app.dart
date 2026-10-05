@@ -4,6 +4,7 @@ import 'core/router/app_router.dart';
 import 'core/services/whats_new_service.dart';
 import 'core/theme/app_theme.dart';
 import 'domain/models/release_info.dart';
+import 'presentation/common/release_dialogs.dart';
 import 'providers/providers.dart';
 
 class NotetonApp extends ConsumerWidget {
@@ -36,37 +37,6 @@ class _UpdateGate extends ConsumerStatefulWidget {
 
   @override
   ConsumerState<_UpdateGate> createState() => _UpdateGateState();
-}
-
-class _BetaBadge extends StatelessWidget {
-  final Color foreground;
-  final Color background;
-
-  const _BetaBadge({
-    required this.foreground,
-    required this.background,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        child: Text(
-          'BETA',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: foreground,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.4,
-              ),
-        ),
-      ),
-    );
-  }
 }
 
 class _UpdateGateState extends ConsumerState<_UpdateGate>
@@ -141,136 +111,25 @@ class _UpdateGateState extends ConsumerState<_UpdateGate>
 
   Future<void> _showWhatsNewDialog(WhatsNewInfo info) async {
     if (!mounted) return;
-    await showDialog<void>(
-      context: context,
+    await showWhatsNewDialog(
+      context,
+      info,
+      confirmLabel: 'Ho capito',
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.auto_awesome, size: 22),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Text('Novità in Noteton v${info.version}'),
-                  if (info.isPrerelease)
-                    _BetaBadge(
-                      foreground: Theme.of(ctx).colorScheme.onTertiaryContainer,
-                      background: Theme.of(ctx).colorScheme.tertiaryContainer,
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        content: ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 360, maxWidth: 420),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (info.publishedAt != null) ...[
-                Text(
-                  'Pubblicato il ${info.release!.formattedDate}',
-                  style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(ctx).colorScheme.outline,
-                      ),
-                ),
-                const SizedBox(height: 12),
-              ],
-              Flexible(
-                child: SingleChildScrollView(
-                  child: Text(
-                    info.changelog,
-                    style: Theme.of(ctx).textTheme.bodyMedium,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Ho capito'),
-          ),
-        ],
-      ),
     );
   }
 
   Future<void> _showUpdateDialog(ReleaseInfo release) async {
     if (!mounted) return;
-    await showDialog<void>(
-      context: context,
+    await showReleaseDialog(
+      context,
+      release: release,
+      dismissLabel: 'Più tardi',
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.system_update, size: 22),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Text('Aggiornamento v${release.version}'),
-                  if (release.prerelease)
-                    _BetaBadge(
-                      foreground: Theme.of(ctx).colorScheme.onTertiaryContainer,
-                      background: Theme.of(ctx).colorScheme.tertiaryContainer,
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        content: ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 360, maxWidth: 420),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Pubblicato il ${release.formattedDate}',
-                style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(ctx).colorScheme.outline,
-                    ),
-              ),
-              const SizedBox(height: 12),
-              Flexible(
-                child: SingleChildScrollView(
-                  child: Text(
-                    release.changelog.trim().isEmpty
-                        ? 'Nessuna nota di rilascio fornita.'
-                        : release.changelog.trim(),
-                    style: Theme.of(ctx).textTheme.bodyMedium,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Più tardi'),
-          ),
-          FilledButton.icon(
-            icon: const Icon(Icons.download, size: 18),
-            label: const Text('Aggiorna ora'),
-            onPressed: () {
-              Navigator.pop(ctx);
-              ref.read(updateProvider.notifier).downloadAndInstall(release);
-              _showDownloadDialog();
-            },
-          ),
-        ],
-      ),
+      onUpdate: () {
+        ref.read(updateProvider.notifier).downloadAndInstall(release);
+        _showDownloadDialog();
+      },
     );
   }
 

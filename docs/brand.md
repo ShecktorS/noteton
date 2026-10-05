@@ -92,8 +92,9 @@ I motivi sono decorativi: sono esclusi dalla semantica di accessibilità.
 | Area | Stato |
 |---|---|
 | Banner aggiornamento in libreria + dialog "Leggi tutto" | ✅ fatto |
-| Dialog "Novità" e dialog di aggiornamento obbligatorio (`app.dart`) | da fare: riusare intestazione e `ChangelogView` |
-| Tema light: raggio card 12 → 18, bordi e superfici allineati al dark | da fare |
+| Dialog "Novità" (avvio e Impostazioni) e dialog di aggiornamento all'avvio | ✅ fatto (`release_dialogs.dart`) |
+| Tema light: raggi card 18 e dialog 24 come nel dark | ✅ fatto |
+| Tema light: superfici e bordi allineati al dark | da fare |
 | Stati vuoti (libreria, setlist, collezioni) con pentagramma | da fare |
 | Navigation bar, Impostazioni, icone rounded | da fare |
 | Viewer PDF e modalità performance | invariati per scelta: niente decorazioni sulla musica |
