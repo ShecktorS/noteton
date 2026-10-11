@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/constants/app_constants.dart';
 import '../../domain/models/setlist_item.dart';
 import '../../providers/providers.dart';
+import '../common/brand/brand_empty_state.dart';
 
 class SetlistDetailScreen extends ConsumerStatefulWidget {
   final int setlistId;
@@ -418,20 +419,10 @@ class _SetlistDetailScreenState extends ConsumerState<SetlistDetailScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.library_music,
-                          size: 64,
-                          color: Theme.of(context).colorScheme.outline),
-                      const SizedBox(height: 16),
-                      const Text('Nessuno spartito in questa setlist'),
-                      const SizedBox(height: 8),
-                      const Text('Tocca + per aggiungerne uno',
-                          style: TextStyle(color: Colors.grey)),
-                    ],
-                  ),
+              ? const BrandEmptyState(
+                  icon: Icons.queue_music_rounded,
+                  title: 'Nessuno spartito in questa setlist',
+                  message: 'Tocca + per aggiungerne uno',
                 )
               : ReorderableListView.builder(
                   padding: const EdgeInsets.only(bottom: 80),

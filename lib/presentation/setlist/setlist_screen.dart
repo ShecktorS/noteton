@@ -6,6 +6,7 @@ import '../../core/constants/app_constants.dart';
 import '../../domain/models/setlist.dart';
 import '../../providers/providers.dart';
 import '../common/app_bottom_nav.dart';
+import '../common/brand/brand_empty_state.dart';
 
 class SetlistScreen extends ConsumerWidget {
   const SetlistScreen({super.key});
@@ -21,24 +22,13 @@ class SetlistScreen extends ConsumerWidget {
         error: (e, _) => Center(child: Text('Errore: $e')),
         data: (setlists) {
           if (setlists.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.queue_music,
-                      size: 64,
-                      color: Theme.of(context).colorScheme.outline),
-                  const SizedBox(height: 16),
-                  const Text('Nessuna setlist'),
-                  const SizedBox(height: 8),
-                  const Text('Tocca + per crearne una',
-                      style: TextStyle(color: Colors.grey)),
-                  const SizedBox(height: 16),
-                  TextButton(
-                    onPressed: () => _showInfoDialog(context),
-                    child: const Text('Cosa sono le Setlist?'),
-                  ),
-                ],
+            return BrandEmptyState(
+              icon: Icons.queue_music_rounded,
+              title: 'Nessuna setlist',
+              message: 'Tocca + per crearne una',
+              action: TextButton(
+                onPressed: () => _showInfoDialog(context),
+                child: const Text('Cosa sono le Setlist?'),
               ),
             );
           }

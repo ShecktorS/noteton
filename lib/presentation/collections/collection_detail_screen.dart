@@ -7,6 +7,7 @@ import '../../domain/models/collection.dart';
 import '../../domain/models/song.dart';
 import '../../providers/providers.dart';
 import '../common/pdf_thumbnail.dart';
+import '../common/brand/brand_empty_state.dart';
 
 class CollectionDetailScreen extends ConsumerStatefulWidget {
   final int collectionId;
@@ -88,20 +89,10 @@ class _CollectionDetailScreenState
             error: (e, _) => Center(child: Text('Errore: $e')),
             data: (songs) {
               if (songs.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.music_note,
-                          size: 64,
-                          color: Theme.of(context).colorScheme.outline),
-                      const SizedBox(height: 16),
-                      const Text('Nessun brano in questa raccolta'),
-                      const SizedBox(height: 8),
-                      const Text('Tocca + per aggiungere brani',
-                          style: TextStyle(color: Colors.grey)),
-                    ],
-                  ),
+                return const BrandEmptyState(
+                  icon: Icons.folder_special_rounded,
+                  title: 'Nessun brano in questa raccolta',
+                  message: 'Tocca + per aggiungere brani',
                 );
               }
               return ListView.builder(
