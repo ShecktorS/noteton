@@ -69,7 +69,7 @@ Numeri di versione, BPM e numeri di pagina usano le cifre tabellari
 | Motivo | Widget | Quando |
 |---|---|---|
 | **Stanghetta d'accento** | barra verticale `barlineWidth` 4 in colore accento sul bordo sinistro | Card che portano un messaggio (aggiornamento, novità, avviso). Una sola per schermata. |
-| **Pentagramma** | `StaffLines` | Texture sotto un simbolo o in uno stato vuoto. Opacità bassa (`staffOpacity` 0.10, fino a ~0.22 su container colorati); mai sotto del testo. |
+| **Pentagramma** | `StaffLines`, `BrandEmptyState` | Texture sotto un simbolo o in uno stato vuoto. Opacità bassa (`staffOpacity` 0.10, fino a ~0.22 su container colorati); mai sotto del testo. |
 | **Testa di nota** | `NoteHeadBullet`, `NoteBulletItem` | Punto elenco per changelog, novità, elenchi di funzioni. |
 | **Occhiello** | `BrandEyebrow`, `BrandBetaBadge` | Etichetta di contesto sopra un titolo; badge a pillola contornata per stati (BETA). |
 
@@ -94,7 +94,7 @@ I motivi sono decorativi: sono esclusi dalla semantica di accessibilità.
 | Banner aggiornamento in libreria + dialog "Leggi tutto" | ✅ fatto |
 | Dialog "Novità" (avvio e Impostazioni) e dialog di aggiornamento all'avvio | ✅ fatto (`release_dialogs.dart`) |
 | Tema light: raggi card 18 e dialog 24 come nel dark | ✅ fatto |
-| Tema light: superfici e bordi allineati al dark | da fare |
-| Stati vuoti (libreria, setlist, collezioni) con pentagramma | da fare |
+| Tema light: stessi componenti del dark (nav bar, chip, fogli, snackbar), card con bordo | ✅ fatto (`AppTheme._build`) |
+| Stati vuoti (libreria, setlist, raccolte, compositore) con pentagramma | ✅ fatto (`BrandEmptyState`) |
 | Navigation bar, Impostazioni, icone rounded | da fare |
 | Viewer PDF e modalità performance | invariati per scelta: niente decorazioni sulla musica |

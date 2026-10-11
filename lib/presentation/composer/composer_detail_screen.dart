@@ -8,6 +8,7 @@ import '../../domain/models/composer.dart';
 import '../../domain/models/song.dart';
 import '../../providers/providers.dart';
 import '../common/pdf_thumbnail.dart';
+import '../common/brand/brand_empty_state.dart';
 
 final _composerSongsProvider =
     FutureProvider.autoDispose.family<List<Song>, int>((ref, composerId) async {
@@ -66,7 +67,11 @@ class ComposerDetailScreen extends ConsumerWidget {
               // ── Song list ────────────────────────────────────────────────
               if (songs.isEmpty)
                 const SliverFillRemaining(
-                  child: Center(child: Text('Nessuno spartito trovato.')),
+                  hasScrollBody: false,
+                  child: BrandEmptyState(
+                    icon: Icons.music_note_rounded,
+                    title: 'Nessuno spartito di questo compositore',
+                  ),
                 )
               else
                 SliverPadding(

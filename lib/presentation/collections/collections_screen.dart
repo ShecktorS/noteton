@@ -6,6 +6,7 @@ import '../../core/constants/app_constants.dart';
 import '../../domain/models/collection.dart';
 import '../../providers/providers.dart';
 import '../common/app_bottom_nav.dart';
+import '../common/brand/brand_empty_state.dart';
 
 class CollectionsScreen extends ConsumerWidget {
   const CollectionsScreen({super.key});
@@ -21,24 +22,13 @@ class CollectionsScreen extends ConsumerWidget {
         error: (e, _) => Center(child: Text('Errore: $e')),
         data: (collections) {
           if (collections.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.folder_special_outlined,
-                      size: 64,
-                      color: Theme.of(context).colorScheme.outline),
-                  const SizedBox(height: 16),
-                  const Text('Nessuna raccolta'),
-                  const SizedBox(height: 8),
-                  const Text('Tocca + per creare una raccolta',
-                      style: TextStyle(color: Colors.grey)),
-                  const SizedBox(height: 16),
-                  TextButton(
-                    onPressed: () => _showInfoDialog(context),
-                    child: const Text('Cosa sono le Raccolte?'),
-                  ),
-                ],
+            return BrandEmptyState(
+              icon: Icons.folder_special_rounded,
+              title: 'Nessuna raccolta',
+              message: 'Tocca + per creare una raccolta',
+              action: TextButton(
+                onPressed: () => _showInfoDialog(context),
+                child: const Text('Cosa sono le Raccolte?'),
               ),
             );
           }

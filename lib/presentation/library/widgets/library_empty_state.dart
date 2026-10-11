@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../domain/models/song.dart';
+import '../../common/brand/brand_empty_state.dart';
 
 /// Messaggio mostrato quando la libreria (o il filtro di stato) è vuota.
 class LibraryEmptyState extends StatelessWidget {
@@ -10,22 +11,14 @@ class LibraryEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.music_note,
-              size: 64, color: Theme.of(context).colorScheme.outline),
-          const SizedBox(height: 16),
-          Text(statusFilter != null
-              ? 'Nessuno spartito con stato "${statusFilter!.label}"'
-              : 'Nessuno spartito nella libreria'),
-          const SizedBox(height: 8),
-          if (statusFilter == null)
-            const Text('Tocca + per importare un PDF',
-                style: TextStyle(color: Colors.grey)),
-        ],
-      ),
+    return BrandEmptyState(
+      icon: statusFilter != null
+          ? Icons.filter_list_rounded
+          : Icons.library_music_rounded,
+      title: statusFilter != null
+          ? 'Nessuno spartito con stato "${statusFilter!.label}"'
+          : 'Nessuno spartito nella libreria',
+      message: statusFilter == null ? 'Tocca + per importare un PDF' : null,
     );
   }
 }
