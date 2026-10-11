@@ -3,8 +3,7 @@
 
 set -e
 
-PROJECT_ROOT="/storage/emulated/0/Synology Drive/Sync tasks/Noteton-957561646188901649"
-cd "$PROJECT_ROOT"
+cd "$(git rev-parse --show-toplevel)"
 
 echo "🔍 Verifica implementazione tema Purple (Amethyst)"
 echo ""
