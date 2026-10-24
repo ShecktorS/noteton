@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'brand.dart';
 import 'color_palettes.dart';
 
 /// Varianti colore disponibili per i temi Noteton
@@ -13,22 +14,26 @@ enum ColorVariant {
 class AppTheme {
   AppTheme._();
 
+  static (Color, Color, Color) _palette(ColorVariant variant) =>
+      switch (variant) {
+        ColorVariant.defaultTheme => (
+            ColorPalettes.defaultSeed,
+            ColorPalettes.defaultGoldAccent,
+            ColorPalettes.defaultGreenTertiary,
+          ),
+        ColorVariant.purple => (
+            ColorPalettes.purpleSeed,
+            ColorPalettes.purpleAmberAccent,
+            ColorPalettes.purpleTealTertiary,
+          ),
+      };
+
   // ── Dark theme ───────────────────────────────────────────────────────────────
   static ThemeData dark([ColorVariant variant = ColorVariant.defaultTheme]) {
-    // Seleziona palette in base alla variante
-    final (seedColor, secondaryColor, tertiaryColor, surfaces) = switch (variant) {
-      ColorVariant.defaultTheme => (
-        ColorPalettes.defaultSeed,
-        ColorPalettes.defaultGoldAccent,
-        ColorPalettes.defaultGreenTertiary,
-        ColorPalettes.defaultDarkSurfaces,
-      ),
-      ColorVariant.purple => (
-        ColorPalettes.purpleSeed,
-        ColorPalettes.purpleAmberAccent,
-        ColorPalettes.purpleTealTertiary,
-        ColorPalettes.purpleDarkSurfaces,
-      ),
+    final (seedColor, secondaryColor, tertiaryColor) = _palette(variant);
+    final surfaces = switch (variant) {
+      ColorVariant.defaultTheme => ColorPalettes.defaultDarkSurfaces,
+      ColorVariant.purple => ColorPalettes.purpleDarkSurfaces,
     };
 
     final base = ColorScheme.fromSeed(
@@ -37,7 +42,7 @@ class AppTheme {
       tertiary: tertiaryColor,
       brightness: Brightness.dark,
     );
-    
+
     final cs = base.copyWith(
       surface: surfaces.surface,
       surfaceContainerLowest: surfaces.surfaceContainerLowest,
@@ -48,6 +53,27 @@ class AppTheme {
       error: const Color(0xFFCF4545),
       onError: Colors.white,
     );
+    return _build(cs);
+  }
+
+  // ── Light theme ──────────────────────────────────────────────────────────────
+  static ThemeData light([ColorVariant variant = ColorVariant.defaultTheme]) {
+    final (seedColor, secondaryColor, tertiaryColor) = _palette(variant);
+    final cs = ColorScheme.fromSeed(
+      seedColor: seedColor,
+      secondary: secondaryColor,
+      tertiary: tertiaryColor,
+      brightness: Brightness.light,
+    );
+    return _build(cs);
+  }
+
+  /// Componenti condivisi da chiaro e scuro: stesse forme e gerarchie di
+  /// superficie (vedi `docs/brand.md`). Le uniche differenze dipendono dalla
+  /// luminosità: nel chiaro le card hanno un bordo, divisori e snackbar
+  /// usano toni con contrasto adeguato su fondo chiaro.
+  static ThemeData _build(ColorScheme cs) {
+    final isDark = cs.brightness == Brightness.dark;
 
     return ThemeData(
       useMaterial3: true,
@@ -101,11 +127,14 @@ class AppTheme {
 
       // ── Card ─────────────────────────────────────────────────────────────────
       cardTheme: CardThemeData(
-        color: cs.surfaceContainer,
+        color: isDark ? cs.surfaceContainer : cs.surfaceContainerLow,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(NotetonBrand.radiusLg),
+          side: isDark
+              ? BorderSide.none
+              : BorderSide(color: cs.outlineVariant, width: 1),
         ),
         margin: EdgeInsets.zero,
       ),
@@ -115,7 +144,9 @@ class AppTheme {
         backgroundColor: cs.primary,
         foregroundColor: cs.onPrimary,
         elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
       ),
 
       // ── InputDecoration ───────────────────────────────────────────────────────
@@ -123,18 +154,19 @@ class AppTheme {
         filled: true,
         fillColor: cs.surfaceContainerHighest,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(NotetonBrand.radiusSm),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(NotetonBrand.radiusSm),
           borderSide: BorderSide(color: cs.surfaceContainerHighest),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(NotetonBrand.radiusSm),
           borderSide: BorderSide(color: cs.primary, width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       ),
 
       // ── BottomSheet ───────────────────────────────────────────────────────────
@@ -153,7 +185,9 @@ class AppTheme {
       dialogTheme: DialogThemeData(
         backgroundColor: cs.surfaceContainerHigh,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(NotetonBrand.radiusXl),
+        ),
         titleTextStyle: TextStyle(
           color: cs.onSurface,
           fontSize: 20,
@@ -166,109 +200,38 @@ class AppTheme {
         backgroundColor: cs.surfaceContainerHighest,
         labelStyle: TextStyle(color: cs.onSurface, fontSize: 13),
         side: BorderSide.none,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(NotetonBrand.radiusMd),
+        ),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       ),
 
       // ── ListTile ─────────────────────────────────────────────────────────────
       listTileTheme: ListTileThemeData(
         tileColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(NotetonBrand.radiusMd),
+        ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       ),
 
       // ── Divider ───────────────────────────────────────────────────────────────
       dividerTheme: DividerThemeData(
-        color: cs.surfaceContainerHighest,
+        color: isDark ? cs.surfaceContainerHighest : cs.outlineVariant,
         thickness: 1,
         space: 1,
       ),
 
       // ── SnackBar ──────────────────────────────────────────────────────────────
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: cs.surfaceContainerHighest,
-        contentTextStyle: TextStyle(color: cs.onSurface),
+        backgroundColor: isDark ? cs.surfaceContainerHighest : cs.inverseSurface,
+        contentTextStyle:
+            TextStyle(color: isDark ? cs.onSurface : cs.onInverseSurface),
+        actionTextColor: isDark ? cs.primary : cs.inversePrimary,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
-
-  // ── Light theme ──────────────────────────────────────────────────────────────
-  static ThemeData light([ColorVariant variant = ColorVariant.defaultTheme]) {
-    // Seleziona palette in base alla variante
-    final (seedColor, secondaryColor, tertiaryColor) = switch (variant) {
-      ColorVariant.defaultTheme => (
-        ColorPalettes.defaultSeed,
-        ColorPalettes.defaultGoldAccent,
-        ColorPalettes.defaultGreenTertiary,
-      ),
-      ColorVariant.purple => (
-        ColorPalettes.purpleSeed,
-        ColorPalettes.purpleAmberAccent,
-        ColorPalettes.purpleTealTertiary,
-      ),
-    };
-
-    final cs = ColorScheme.fromSeed(
-      seedColor: seedColor,
-      secondary: secondaryColor,
-      tertiary: tertiaryColor,
-      brightness: Brightness.light,
-    );
-    return ThemeData(
-      useMaterial3: true,
-      colorScheme: cs,
-      appBarTheme: AppBarTheme(
-        backgroundColor: cs.surface,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 1,
-        centerTitle: false,
-        titleTextStyle: TextStyle(
-          color: cs.onSurface,
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-          letterSpacing: -0.3,
-        ),
-      ),
-      cardTheme: CardThemeData(
-        elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: cs.outlineVariant, width: 1),
+          borderRadius: BorderRadius.circular(NotetonBrand.radiusSm),
         ),
-        margin: EdgeInsets.zero,
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: cs.surfaceContainerHighest,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: cs.primary, width: 2),
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      ),
-      bottomSheetTheme: const BottomSheetThemeData(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        showDragHandle: true,
-      ),
-      dialogTheme: DialogThemeData(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        titleTextStyle: TextStyle(
-          color: cs.onSurface,
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      snackBarTheme: const SnackBarThemeData(
-        behavior: SnackBarBehavior.floating,
       ),
     );
   }
