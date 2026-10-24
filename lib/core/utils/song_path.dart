@@ -89,17 +89,20 @@ class SongPath {
     if (kIsWeb) {
       return ResolveResult(path: storedPath, exists: false, reason: 'not_found');
     }
-    // 1. Assoluto esistente (dati pre-0.3.4) → pass-through.
-    if (p.isAbsolute(storedPath)) {
+    // 1. Assoluto esistente (dati pre-0.3.4) → pass-through. I brani sono
+    //    sempre PDF: un path assoluto verso altri file non viene risolto.
+    if (p.isAbsolute(storedPath) &&
+        p.extension(storedPath).toLowerCase() == '.pdf') {
       if (await File(storedPath).exists()) {
         return ResolveResult(
             path: storedPath, exists: true, reason: 'absolute');
       }
     }
     final docs = await getApplicationDocumentsDirectory();
-    // 2. Relativo normale.
-    final candidateDirect = p.join(docs.path, storedPath);
-    if (await File(candidateDirect).exists()) {
+    // 2. Relativo normale, purché resti dentro la docs dir (niente `../`).
+    final candidateDirect = p.normalize(p.join(docs.path, storedPath));
+    if (p.isWithin(docs.path, candidateDirect) &&
+        await File(candidateDirect).exists()) {
       return ResolveResult(
           path: candidateDirect, exists: true, reason: 'relative');
     }

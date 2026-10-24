@@ -5,6 +5,7 @@ class ReleaseInfo {
   final String changelog;    // body markdown della release
   final DateTime publishedAt;
   final bool prerelease;     // true se è una pre-release (beta, alpha, rc)
+  final String? sha256;      // hash esadecimale dell'asset, se GitHub lo espone
 
   const ReleaseInfo({
     required this.version,
@@ -12,6 +13,7 @@ class ReleaseInfo {
     required this.changelog,
     required this.publishedAt,
     this.prerelease = false,
+    this.sha256,
   });
 
   /// Costruisce da risposta JSON dell'API GitHub Releases.
@@ -44,6 +46,7 @@ class ReleaseInfo {
         changelog: (json['body'] as String?) ?? '',
         publishedAt: publishedAt,
         prerelease: json['prerelease'] as bool? ?? false,
+        sha256: _parseSha256Digest(apkAsset['digest']),
       );
     } catch (_) {
       return null;
@@ -71,6 +74,15 @@ class ReleaseInfo {
     ];
     final d = publishedAt.toLocal();
     return '${d.day} ${months[d.month - 1]} ${d.year}';
+  }
+
+  /// GitHub espone l'hash degli asset come `digest: "sha256:<hex>"`.
+  /// Ritorna l'hex in minuscolo, o null se assente o in formato diverso.
+  static String? _parseSha256Digest(Object? digest) {
+    if (digest is! String) return null;
+    final match =
+        RegExp(r'^sha256:([0-9a-fA-F]{64})$').firstMatch(digest.trim());
+    return match?.group(1)!.toLowerCase();
   }
 
   /// Rimuove un eventuale prefisso 'v' del tag (es. 'v0.10.1' → '0.10.1')

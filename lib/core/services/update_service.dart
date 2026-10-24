@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
@@ -72,20 +73,37 @@ class UpdateService {
     return release;
   }
 
+  /// Host da cui è ammesso scaricare l'APK (asset delle GitHub Releases).
+  static const _allowedDownloadHosts = {'github.com'};
+
   /// Scarica l'APK nella cartella temporanea, emettendo progresso (0.0–1.0).
+  ///
+  /// Accetta solo URL https verso GitHub, rifiuta risposte non 200 e
+  /// download troncati. Se [expectedSha256] è noto (campo `digest`
+  /// dell'asset), verifica l'hash del file prima di restituirlo.
   Future<String> downloadApk(
     String url,
-    void Function(double progress) onProgress,
-  ) async {
-    final cacheDir = await getTemporaryDirectory();
-    final apkPath = '${cacheDir.path}/noteton-update.apk';
+    void Function(double progress) onProgress, {
+    String? expectedSha256,
+  }) async {
+    final uri = Uri.parse(url);
+    if (uri.scheme != 'https' || !_allowedDownloadHosts.contains(uri.host)) {
+      throw Exception('URL di download non ammesso: $url');
+    }
 
-    final request = http.Request('GET', Uri.parse(url));
-    final streamedResponse = await request.send();
+    final cacheDir = await getTemporaryDirectory();
+    final apkFile = File('${cacheDir.path}/noteton-update.apk');
+
+    final request = http.Request('GET', uri);
+    final streamedResponse =
+        await request.send().timeout(const Duration(seconds: 30));
+    if (streamedResponse.statusCode != 200) {
+      throw Exception('Download APK: HTTP ${streamedResponse.statusCode}');
+    }
     final total = streamedResponse.contentLength ?? 0;
     int received = 0;
 
-    final sink = File(apkPath).openWrite();
+    final sink = apkFile.openWrite();
     try {
       await for (final chunk in streamedResponse.stream) {
         sink.add(chunk);
@@ -96,7 +114,22 @@ class UpdateService {
       await sink.close();
     }
 
-    return apkPath;
+    try {
+      if (total > 0 && received != total) {
+        throw Exception('Download APK incompleto: $received/$total byte');
+      }
+      if (expectedSha256 != null) {
+        final digest = await sha256.bind(apkFile.openRead()).first;
+        if (digest.toString() != expectedSha256.toLowerCase()) {
+          throw Exception('Hash dell\'APK non corrisponde alla release');
+        }
+      }
+    } catch (_) {
+      if (await apkFile.exists()) await apkFile.delete();
+      rethrow;
+    }
+
+    return apkFile.path;
   }
 
   /// Lancia il package installer Android tramite platform channel.
