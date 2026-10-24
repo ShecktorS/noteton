@@ -29,8 +29,10 @@ class NotetonApp extends ConsumerWidget {
 }
 
 /// Mostra un dialog con changelog quando viene rilevato un aggiornamento.
-/// "Più tardi" chiude il dialog senza persistere — verrà riproposto al
-/// prossimo avvio. La X in Settings invece nasconde la versione per sempre.
+/// "Più tardi" chiude il dialog senza persistere — verrà riproposto alla
+/// prossima apertura, cioè al prossimo avvio o al rientro dopo almeno
+/// [_UpdateGateState._reopenAfter] in background. La X in Settings invece
+/// nasconde la versione per sempre.
 class _UpdateGate extends ConsumerStatefulWidget {
   final Widget child;
   const _UpdateGate({required this.child});
@@ -41,9 +43,15 @@ class _UpdateGate extends ConsumerStatefulWidget {
 
 class _UpdateGateState extends ConsumerState<_UpdateGate>
     with WidgetsBindingObserver {
+  /// Un rientro dopo almeno questo tempo in background conta come una
+  /// nuova apertura: il controllo riparte e il dialog può ricomparire.
+  /// I rientri brevi (file picker, installer, condivisione) non lo riaprono.
+  static const _reopenAfter = Duration(minutes: 30);
+
   bool _dialogShownThisSession = false;
   bool _startupFlowRunning = false;
   bool _updateCheckStarted = false;
+  DateTime? _pausedAt;
 
   @override
   void initState() {
@@ -60,7 +68,16 @@ class _UpdateGateState extends ConsumerState<_UpdateGate>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.paused) {
+      _pausedAt = DateTime.now();
+    } else if (state == AppLifecycleState.resumed) {
+      final pausedAt = _pausedAt;
+      _pausedAt = null;
+      if (pausedAt != null &&
+          DateTime.now().difference(pausedAt) >= _reopenAfter) {
+        _updateCheckStarted = false;
+        _dialogShownThisSession = false;
+      }
       WidgetsBinding.instance.addPostFrameCallback((_) => _runStartupFlow());
     }
   }
