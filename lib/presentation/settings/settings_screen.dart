@@ -11,7 +11,6 @@ import '../../core/services/whats_new_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../domain/models/import_report.dart';
 import '../../domain/models/tag.dart';
-import '../../domain/models/update_channel.dart';
 import '../../providers/providers.dart';
 import '../common/app_bottom_nav.dart';
 import '../common/release_dialogs.dart';
@@ -474,13 +473,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 subtitle: Consumer(
                   builder: (context, ref, _) {
                     final enabled = ref.watch(autoUpdateEnabledProvider);
-                    final channel = ref.watch(updateChannelProvider);
-                    final channelLabel = channel == UpdateChannel.beta
-                        ? 'canale beta'
-                        : 'canale stabile';
-                    return Text(enabled
-                        ? 'Attivo · $channelLabel'
-                        : 'Disattivato · $channelLabel');
+                    return Text(enabled ? 'Attivo' : 'Disattivato');
                   },
                 ),
                 trailing: const Icon(Icons.chevron_right),
