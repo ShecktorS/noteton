@@ -72,7 +72,7 @@ Nasce come alternativa cross-platform a MobileSheets, con focus su libreria loca
 ### Aggiornamenti e personalizzazione
 
 - Controllo aggiornamenti da GitHub Releases.
-- Canale aggiornamenti stabile/beta.
+- Aggiornamenti in-app: viene proposta sempre la versione più recente, beta comprese (segnate con BETA).
 - Download APK con progresso e installazione tramite platform channel Android.
 - Banner aggiornamento in home.
 - Modale “Novità della versione” post aggiornamento.

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/models/release_info.dart';
-import '../../domain/models/update_channel.dart';
 import '../../providers/providers.dart';
 
 /// Schermata dedicata "Aggiornamento automatico".
@@ -14,7 +13,6 @@ class AutoUpdateScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final enabled = ref.watch(autoUpdateEnabledProvider);
-    final channel = ref.watch(updateChannelProvider);
     final updateState = ref.watch(updateProvider);
     final colorScheme = Theme.of(context).colorScheme;
 
@@ -59,99 +57,13 @@ class AutoUpdateScreen extends ConsumerWidget {
           ),
 
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Material(
-              color: colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(20),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.tune, color: colorScheme.primary),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Canale aggiornamenti',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      channel == UpdateChannel.beta
-                          ? 'Ricevi versioni stabili e beta di prova.'
-                          : 'Ricevi solo versioni ufficiali consigliate.',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                    ),
-                    const SizedBox(height: 14),
-                    SizedBox(
-                      width: double.infinity,
-                      child: SegmentedButton<UpdateChannel>(
-                        segments: const [
-                          ButtonSegment(
-                            value: UpdateChannel.stable,
-                            icon: Icon(Icons.verified_outlined),
-                            label: Text('Stabile'),
-                          ),
-                          ButtonSegment(
-                            value: UpdateChannel.beta,
-                            icon: Icon(Icons.science_outlined),
-                            label: Text('Beta'),
-                          ),
-                        ],
-                        selected: {channel},
-                        showSelectedIcon: false,
-                        onSelectionChanged: (selection) => _setChannel(
-                          context,
-                          ref,
-                          selection.first,
-                        ),
-                      ),
-                    ),
-                    if (channel == UpdateChannel.beta) ...[
-                      const SizedBox(height: 12),
-                      DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: colorScheme.tertiaryContainer
-                              .withValues(alpha: 0.55),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(Icons.info_outline,
-                                  size: 18,
-                                  color: colorScheme.onTertiaryContainer),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  'Le beta possono contenere bug. Puoi tornare '
-                                  'al canale stabile in qualsiasi momento.',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
-                                      ?.copyWith(
-                                        color:
-                                            colorScheme.onTertiaryContainer,
-                                      ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+            child: Text(
+              'All\'apertura ti proponiamo sempre la versione più recente, '
+              'comprese le beta di prova, segnate con BETA.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
             ),
           ),
 
@@ -254,47 +166,6 @@ class AutoUpdateScreen extends ConsumerWidget {
           ),
         ],
       ),
-    );
-  }
-
-  Future<void> _setChannel(
-    BuildContext context,
-    WidgetRef ref,
-    UpdateChannel next,
-  ) async {
-    final current = ref.read(updateChannelProvider);
-    if (next == current) return;
-
-    if (next == UpdateChannel.beta) {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Abilitare il canale beta?'),
-          content: const Text(
-            'Riceverai anche versioni di prova con funzionalità nuove. '
-            'Potrebbero contenere bug o regressioni: puoi tornare al canale '
-            'stabile in qualsiasi momento.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Annulla'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Abilita beta'),
-            ),
-          ],
-        ),
-      );
-      if (confirmed != true) return;
-    }
-
-    await ref.read(updateChannelProvider.notifier).setChannel(next);
-    if (!context.mounted) return;
-    final label = next == UpdateChannel.beta ? 'beta' : 'stabile';
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Canale aggiornamenti impostato su $label.')),
     );
   }
 

@@ -23,8 +23,6 @@ class AppConstants {
   // GitHub Releases
   static const String githubOwner = 'ShecktorS';
   static const String githubRepo = 'noteton';
-  static const String githubApiLatestRelease =
-      'https://api.github.com/repos/$githubOwner/$githubRepo/releases/latest';
   static const String githubApiAllReleases =
       'https://api.github.com/repos/$githubOwner/$githubRepo/releases';
 
