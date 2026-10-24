@@ -35,6 +35,17 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Installa le dipendenze
+        run: flutter pub get
+
+      # Analisi e test girano prima che la keystore sia sul disco:
+      # una release con errori o test rossi non viene pubblicata.
+      - name: Analisi statica
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
       - name: Ricostruisci la keystore dai secrets
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -71,9 +82,6 @@ jobs:
           else
             echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Installa le dipendenze
-        run: flutter pub get
 
       - name: Build APK di release
         run: flutter build apk --release
