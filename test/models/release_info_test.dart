@@ -87,6 +87,29 @@ void main() {
     });
   });
 
+  group('ReleaseInfo.sha256', () {
+    Map<String, dynamic> withDigest(Object? digest) => _releaseJson(assets: [
+          {
+            'name': 'Noteton-0.10.1.apk',
+            'browser_download_url': 'https://example.com/Noteton-0.10.1.apk',
+            'digest': digest,
+          },
+        ]);
+
+    test('legge il digest sha256 dell\'asset in minuscolo', () {
+      final hex = 'AB' * 32;
+      final r = ReleaseInfo.fromJson(withDigest('sha256:$hex'));
+      expect(r!.sha256, hex.toLowerCase());
+    });
+
+    test('ignora digest assenti o in altri formati', () {
+      expect(ReleaseInfo.fromJson(_releaseJson())!.sha256, isNull);
+      expect(ReleaseInfo.fromJson(withDigest(null))!.sha256, isNull);
+      expect(ReleaseInfo.fromJson(withDigest('md5:abcd'))!.sha256, isNull);
+      expect(ReleaseInfo.fromJson(withDigest('sha256:123'))!.sha256, isNull);
+    });
+  });
+
   group('ReleaseInfo.isNewerThan', () {
     ReleaseInfo withVersion(String v) =>
         ReleaseInfo.fromJson(_releaseJson(tag: 'v$v'))!;

@@ -385,6 +385,7 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
         (p) {
           if (mounted) state = UpdateDownloading(p);
         },
+        expectedSha256: release.sha256,
       );
       if (mounted) state = UpdateReadyToInstall(path);
       await _service.installApk(path);

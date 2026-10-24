@@ -395,10 +395,12 @@ class BackupRepository {
       if (pdfEntry == null) {
         missingPdfTitles.add(title);
         missingPdfCount++;
-        // Registra comunque il brano, ma senza PDF fisico.
+        // Registra comunque il brano, ma senza PDF fisico. Del path salvato
+        // nel backup teniamo solo il basename: un `filePath` come
+        // `../databases/x.db` non deve poter puntare fuori dalla libreria.
         toStage.add(_PlannedSong(
           oldId: oldId,
-          data: songData,
+          data: {...songData, 'filePath': originalFilename},
           newFilename: '',
           pdfBytes: null,
         ));
