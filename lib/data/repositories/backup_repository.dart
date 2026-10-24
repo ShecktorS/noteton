@@ -465,13 +465,17 @@ class BackupRepository {
 
     // ---- Songs ------------------------------------------------------------
     final oldIdToNewId = <int, int>{...plan.dedupOldToExistingId};
+    final composerIdsByName = <String, int>{};
     int songsInserted = 0;
     for (final planned in plan.toStage) {
       final songData = planned.data;
       final now = DateTime.now();
+      final composerName = (songData['composerName'] as String?)?.trim();
       final song = Song(
         title: songData['title'] as String,
-        composerName: songData['composerName'] as String?,
+        composerId: composerName == null || composerName.isEmpty
+            ? null
+            : await _findOrCreateComposer(txn, composerName, composerIdsByName),
         filePath: planned.newFilename.isNotEmpty
             ? planned.newFilename
             : (songData['filePath'] as String? ?? ''),
@@ -661,6 +665,31 @@ class BackupRepository {
       tagsInserted: tagsInserted,
       annotationsInserted: annotationsInserted,
     );
+  }
+
+  /// Il backup salva il compositore per nome: lo ricollega a un compositore
+  /// esistente (confronto case-insensitive, come `ComposerRepository`) o
+  /// lo crea dentro la stessa transazione.
+  Future<int> _findOrCreateComposer(
+    Transaction txn,
+    String name,
+    Map<String, int> cache,
+  ) async {
+    final key = name.toLowerCase();
+    final cached = cache[key];
+    if (cached != null) return cached;
+    final rows = await txn.query(
+      'composers',
+      columns: ['id'],
+      where: 'LOWER(name) = LOWER(?)',
+      whereArgs: [name],
+      limit: 1,
+    );
+    final id = rows.isNotEmpty
+        ? rows.first['id'] as int
+        : await txn.insert('composers', {'name': name});
+    cache[key] = id;
+    return id;
   }
 
   // =========================================================================
